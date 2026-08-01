@@ -1,0 +1,8 @@
+venv/
+data/wad/
+data/patt/
+data/hpd/
+corpus/raw_capture.json
+__pycache__/
+.ipynb_checkpoints/
+.DS_Store
