@@ -229,7 +229,26 @@ the raw `path`/`query`/`body`/`headers`).
   means small-family metrics have wider CIs; the disjoint test still holds ≥11
   payload groups per family, and `baselines.py` reports group-level bootstrap CIs.
 - **Seed payload set is finite**; place PayloadsAllTheThings under `data/patt/`
-  and rebuild to widen coverage and the number of held-out test groups.
+  and rebuild to widen coverage and the number of held-out test groups. Note the
+  released corpus was built *without* it (1,979 payloads); a rebuild with
+  `data/patt/` present draws from a larger pool and will not reproduce the
+  published CSV byte-for-byte.
+- **25 rows contain raw NUL bytes** in `body` and `payload_raw` (20 traversal,
+  5 cmdi; 12 train / 10 test / 3 val). This is faithful — null-byte injection
+  truncates strings in the C layer beneath PHP and Java, so the byte has to
+  survive into the corpus to be worth detecting — but it constrains consumers:
+  - **Python 3.10 and earlier cannot read the CSV** (`_csv.Error: line contains
+    NUL`). 3.11 lifted the restriction; hence the 3.11 floor.
+  - PostgreSQL `COPY`, R's `read.csv`, and some Excel imports also reject NUL.
+  - The `payload` column carries no NUL, so payload-only models are unaffected;
+    the byte survives in `body` and `payload_raw` only.
+  - **The CSV and the Parquet copy disagree on exactly these 25 rows.**
+    `write_parquet` re-reads the CSV with `pandas.read_csv`, whose C parser
+    silently drops NUL, so `data/webinject2026.parquet` holds the same 61,400
+    rows and is identical in all 22 columns *except* `body` and `payload_raw`
+    on those rows, where the NUL is missing (50 cells in total). Treat the CSV
+    as authoritative; use the Parquet copy if your loader is strict about NUL
+    and losing that byte is acceptable for your task.
 
 ---
 

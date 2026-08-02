@@ -172,7 +172,7 @@ src/baselines.py   reference results: F1/PR-AUC/TPR@FPR, prevalence-corrected pr
 src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence correction, submission scorer (--predictions)
 src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate
 data/webinject2026.csv       the corpus (22 columns; see DATASHEET.md > Schema)
-data/webinject2026.parquet   same rows, typed columnar copy
+data/webinject2026.parquet   same rows, typed columnar copy (NUL stripped in 25 rows; see DATASHEET.md > Limitations)
 data/manifest.json           build provenance and distribution counts
 data/baselines.json          machine-readable baseline metrics
 data/evaluation.json         machine-readable protocol metrics

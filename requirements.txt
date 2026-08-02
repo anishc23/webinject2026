@@ -1,4 +1,6 @@
-# WebInject2026 — pinned for reproducibility (Python 3.10+)
+# WebInject2026 — pinned for reproducibility (Python 3.11+)
+# 3.11 is a hard floor, not a preference: 25 rows carry raw NUL bytes from the
+# null-byte evasion, and 3.10's csv module rejects NUL on read and on write.
 numpy>=1.24
 pandas>=2.0
 scikit-learn>=1.3

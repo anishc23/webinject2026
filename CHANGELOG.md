@@ -21,8 +21,22 @@ byte-identical to 3.0.0, and `src/config.VERSION` is unchanged.
   push. Both are hoisted into variables; output is unchanged and the corpus
   rebuilds byte-identical.
 
+### Changed
+- **Supported Python floor is now 3.11**, documented rather than assumed. 25 rows
+  carry raw NUL bytes from the null-byte evasion, and 3.10's `csv` module rejects
+  NUL on both read and write, so 3.10 cannot load the corpus at all. 3.11 lifted
+  the restriction.
+
+### Documented (no data change)
+- **The 25 NUL-bearing rows**, and the fact that the CSV and Parquet copies
+  disagree on exactly those rows: `write_parquet` re-reads the CSV through
+  `pandas.read_csv`, whose C parser silently drops NUL, so the Parquet is
+  NUL-free in `body` and `payload_raw` (50 cells). The CSV is authoritative.
+  Also noted that the release was built without `data/patt/`, so a rebuild with
+  a local PayloadsAllTheThings checkout will not reproduce the published CSV.
+
 ### Added
-- **CI matrix over Python 3.10 / 3.11 / 3.12**, spanning the PEP 701 boundary.
+- **CI matrix over Python 3.11 / 3.12**, spanning the PEP 701 boundary.
   A single-version matrix is what let the f-strings above ship.
 - **`src/checksums.py`** owns the manifest. `python -m src.checksums` rewrites it;
   `--check` verifies and exits non-zero. `src.build` refreshes it after every
