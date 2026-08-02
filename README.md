@@ -18,6 +18,11 @@ shortcut or leak reappears.
 > chained evasions, sessions, and harder evaluation protocols. The gate grew
 > from 20 checks to 26. See [CHANGELOG.md](CHANGELOG.md).
 
+New to the problem, or preparing a talk on it?
+[**docs/WebInject2026_Presenter_Guide.pdf**](docs/WebInject2026_Presenter_Guide.pdf)
+explains the attacks, the leakage argument, the construction and every headline
+number from first principles, assuming no security or ML background.
+
 ## Contents
 
 | | |
@@ -41,7 +46,7 @@ to a punctuation test:
 |---|---|---|
 | `routine` | 26,000 | Ordinary navigation, alphanumeric-dominant |
 | `hard_negative` | 17,000 | **Punctuation-rich but non-injective** — apostrophes in names, quotes and shell metacharacters in reviews, base64/JWT tokens, URLs and JSON in parameters, pasted code snippets, and the same encoding markers evasions use (`%25`, `/**/`, `&#`, `%00`) in benign contexts. Enumerated into **~2,340 split-disjoint cores**: each row carries one core, the core id is its split group, so no benign phrase spans train/test |
-| `ambiguous` | 2,400 | Benign text that *contains literal attack syntax*, in 884 compositional (frame × specimen) cores across all 14 families, split-disjoint. `discussion` cores ("how do I stop `' OR 1=1--`?") are headroom a context-aware model wins; `verbatim` cores (the payload with minimal framing) are the **irreducible** payload-only error floor. The `group` id is prefixed `ambigD`/`ambigV` so the two are separable |
+| `ambiguous` | 2,400 | Benign text that *contains literal attack syntax*, in 823 compositional (frame × specimen) cores across all 14 families (528 `discussion`, 295 `verbatim`), split-disjoint. `discussion` cores ("how do I stop `' OR 1=1--`?") are headroom a context-aware model wins; `verbatim` cores (the payload with minimal framing) are the **irreducible** payload-only error floor. The `group` id is prefixed `ambigD`/`ambigV` so the two are separable |
 
 ## Quick start
 
@@ -94,7 +99,7 @@ baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
   (`split_struct`) split.** The drop from payload- to template-disjoint is the
   systematicity of the grammar — report both.
 - **Prevalence matters.** At the corpus's 26% attack rate the char n-gram's
-  precision at 1% FPR is 97%; at a realistic **0.5% prevalence it is 33%** (89%
+  precision at 1% FPR is 97%; at a realistic **0.5% prevalence it is 33%** (81%
   if you can hold FPR to 0.1%). Report the precision at *your* operating
   prevalence — `evaluate.py` prints the table.
 - **Group-bootstrap 95% CI** (char n-gram, disjoint, resampling payload groups —
@@ -178,6 +183,8 @@ data/baselines.json          machine-readable baseline metrics
 data/evaluation.json         machine-readable protocol metrics
 tests/             pytest wrapper around the gate
 DATASHEET.md       datasheet-for-datasets (motivation, composition, collection, uses, limitations)
+docs/WebInject2026_Presenter_Guide.pdf   plain-language guide to the whole corpus (20 pp.)
+docs/build_presenter_guide.py            regenerates that PDF from the shipped result files
 ```
 
 `data/csic_parsed.csv` and `data/ecml_parsed.csv` are the classic CSIC-2010 and
@@ -193,9 +200,12 @@ synthetic — it contains no real users, credentials, or PII.
 
 ```bibtex
 @misc{webinject2026,
+  author = {Choudhury, Anish and Abhishek},
   title  = {WebInject2026: A Leakage-Audited Corpus for Web Injection Detection},
   year   = {2026},
   note   = {Version 3.0.0},
   howpublished = {\url{https://github.com/anishc23/webinject2026}}
 }
 ```
+
+Machine-readable metadata is in [CITATION.cff](CITATION.cff).

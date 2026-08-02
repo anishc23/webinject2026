@@ -13,3 +13,5 @@ requests>=2.31,<3
 xgboost>=2.0,<3
 # Test runner
 pytest>=7.4
+# Optional: only needed to rebuild docs/WebInject2026_Presenter_Guide.pdf
+reportlab>=4.0
