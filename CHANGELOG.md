@@ -95,9 +95,9 @@ results are **not** comparable to a v2.1 run.
   precision** (0.5% / 1% / 5% / 26% attack), and a **submission scorer**
   (`--predictions`) so external models are graded on the fixed test split.
 - **Parquet export** (`data/webinject2026.parquet`) alongside the CSV.
-- **Six new gate checks** (20 → 26): `benign_split_leak`, `header_leak`,
-  `family_path_leak`, `content_type_leak`, `struct_split_leak`, `session_leak`,
-  plus a `struct_gen` recall floor.
+- **New gate checks**, bringing the gate to **25** in total:
+  `benign_split_leak`, `header_leak`, `family_path_leak`, `content_type_leak`,
+  `struct_split_leak`, `session_leak`, plus a `struct_gen` recall floor.
 
 ### Changed
 - Rows 55,200 → **61,400** (benign 41,200 → 45,400; attack 14,000 → 16,000).

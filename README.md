@@ -3,7 +3,7 @@
 A contemporary, leakage-audited corpus for **web-application injection-attack
 detection**. 61,400 labelled HTTP requests across three applications and fourteen
 attack families, shipped with fixed payload-disjoint **and** template-disjoint
-splits and an automated 26-check quality gate that fails the build if any known
+splits and an automated 25-check quality gate that fails the build if any known
 shortcut or leak reappears.
 
 > **v3.0 rebuild.** v2.1 made the *attack* side rigorous but left two measurable
@@ -16,7 +16,7 @@ shortcut or leak reappears.
 > deserialization, prototype pollution, request smuggling), JSON/GraphQL/
 > multipart bodies and PUT/PATCH/DELETE, a template-disjoint structural split,
 > chained evasions, sessions, and harder evaluation protocols. The gate grew
-> from 20 checks to 26. See [CHANGELOG.md](CHANGELOG.md).
+> to 25 checks. See [CHANGELOG.md](CHANGELOG.md).
 
 New to the problem, or preparing a talk on it?
 [**Understanding_WebInject2026.pdf**](Understanding_WebInject2026.pdf) explains
@@ -55,7 +55,7 @@ pip install -r requirements.txt
 
 shasum -a 256 -c SHA256SUMS  # confirm the files you have are the files released
 python -m src.build          # rebuild the corpus offline (reproducible, seed=42)
-python -m src.validate       # 26-check quality gate; non-zero exit on any FAIL
+python -m src.validate       # 25-check quality gate; non-zero exit on any FAIL
 python -m src.baselines      # reference results table
 python -m src.evaluate       # generalisation protocols + prevalence correction
 python -m src.figures        # the eight paper figures, from the shipped result JSONs
@@ -153,7 +153,7 @@ python -m src.evaluate --predictions my_scores.(csv|parquet|npy)
 
 ## What the quality gate enforces
 
-`python -m src.validate` fails the build unless every one of 26 checks passes:
+`python -m src.validate` fails the build unless every one of 25 checks passes:
 
 - **ratio / duplicates / length_gap** — balance, no repeated payloads, benign vs attack median length within 15%
 - **char_class** — benign and attack share a character alphabet (≤3 attack-only characters)
@@ -180,7 +180,7 @@ src/config.py      35 endpoints, 14 families, volumes, four anti-leak invariants
 src/vocab.py       three-tier benign generators, ~2.3k groupable benign cores, ambiguous cores, guard
 src/payloads.py    14 families: seed + grammar (templates, ~2k payloads) + chained evasions; widens from PayloadsAllTheThings
 src/build.py       synthesise -> (optional capture) -> normalise -> dedup -> payload + structural splits -> sessions
-src/validate.py    the 26-check quality gate
+src/validate.py    the 25-check quality gate
 src/baselines.py   reference results: F1/PR-AUC/TPR@FPR, prevalence-corrected precision, slice recall, bootstrap CIs, cross-dataset
 src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence correction, submission scorer (--predictions)
 src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate

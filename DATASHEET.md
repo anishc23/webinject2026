@@ -114,7 +114,9 @@ train/test. Every non-carrier field uses an unbounded procedural generator, so
 only the (grouped) core can repeat. This closes the v2.1 leak where 67% of
 hard-negative test values were seen verbatim in training. The `ambiguous` tier
 places literal attack syntax in benign contexts, built compositionally from 34
-frames × 26 attack-syntax specimens (884 cores, all 14 families). Its `verbatim`
+frames × 26 attack-syntax specimens (884 possible combinations, of which **823
+distinct cores** appear in the shipped corpus — 528 `discussion`, 295
+`verbatim` — across all 14 families). Its `verbatim`
 cores (payload with minimal framing) are the *irreducible* payload-only floor — a
 request-only detector cannot separate them from a real attack, and a strong char
 n-gram false-positives on them as it must (gate: `ambiguous_floor`); its
