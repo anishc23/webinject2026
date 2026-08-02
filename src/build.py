@@ -574,6 +574,17 @@ def main():
     volume = {"routine": args.n_routine, "hard_negative": args.n_hard,
               "ambiguous": args.n_ambiguous, "attack": args.n_attack}
 
+    # data/patt/ is gitignored, so whether it is on disk silently decides which
+    # corpus you get. The release was built without it; a rebuild with it present
+    # draws from a larger pool and will not reproduce the published CSV. Say so
+    # loudly rather than letting the difference surface as a failed CI diff.
+    if os.path.isdir(PATT_ROOT):
+        print("WARNING: %s is present, so its payloads are being folded in."
+              % os.path.relpath(PATT_ROOT, ROOT))
+        print("         The released corpus was built WITHOUT it. This rebuild will")
+        print("         NOT reproduce data/webinject2026.csv. Move the directory")
+        print("         aside to rebuild the published corpus.")
+
     pool = P.load_pool(patt_root=PATT_ROOT)
     json.dump({k: [p for p, _ in v] for k, v in pool.items()},
               open(os.path.join(CORPUS, "payloads.json"), "w"), ensure_ascii=False)
