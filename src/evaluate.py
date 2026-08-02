@@ -48,6 +48,8 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (average_precision_score, f1_score, precision_score,
                              recall_score, roc_curve)
 
+from src import checksums as S  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 TARGET_PREVALENCES = [0.005, 0.01, 0.05, 0.254]
@@ -228,6 +230,7 @@ def main():
         results["submission"] = m
         if args.json:
             json.dump(results, open(args.json, "w"), indent=2)
+            S.refresh(args.json)
         return
 
     print("=" * 78)
@@ -267,6 +270,8 @@ def main():
     if args.json:
         json.dump(results, open(args.json, "w"), indent=2)
         print(f"\nwrote {args.json}")
+        if S.refresh(args.json):
+            print(f"refreshed {S.SUMS}")
 
 
 if __name__ == "__main__":

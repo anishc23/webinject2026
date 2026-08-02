@@ -17,6 +17,11 @@ jobs:
       - name: Install
         run: pip install -r requirements.txt
 
+      # Must precede the rebuild: `src.build` rewrites SHA256SUMS, which would
+      # paper over a commit whose files and manifest disagree.
+      - name: Released files match SHA256SUMS
+        run: python -m src.checksums --check
+
       - name: Rebuild corpus (offline, deterministic)
         run: python -m src.build --no-parquet
 

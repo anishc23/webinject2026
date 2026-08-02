@@ -48,6 +48,7 @@ to a punctuation test:
 ```bash
 pip install -r requirements.txt
 
+shasum -a 256 -c SHA256SUMS  # confirm the files you have are the files released
 python -m src.build          # rebuild the corpus offline (reproducible, seed=42)
 python -m src.validate       # 26-check quality gate; non-zero exit on any FAIL
 python -m src.baselines      # reference results table
@@ -169,6 +170,7 @@ src/build.py       synthesise -> (optional capture) -> normalise -> dedup -> pay
 src/validate.py    the 26-check quality gate
 src/baselines.py   reference results: F1/PR-AUC/TPR@FPR, prevalence-corrected precision, slice recall, bootstrap CIs, cross-dataset
 src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence correction, submission scorer (--predictions)
+src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate
 data/webinject2026.csv       the corpus (22 columns; see DATASHEET.md > Schema)
 data/webinject2026.parquet   same rows, typed columnar copy
 data/manifest.json           build provenance and distribution counts

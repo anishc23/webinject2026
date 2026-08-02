@@ -45,6 +45,8 @@ from sklearn.metrics import (accuracy_score, average_precision_score, f1_score,
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
+from src import checksums as S  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 SPECIAL = set("<>'\";()|&%$`{}[]=*/\\!:")
@@ -371,6 +373,8 @@ def main():
     if args.json:
         json.dump(results, open(args.json, "w"), indent=2)
         print(f"\nwrote {args.json}")
+        if S.refresh(args.json):
+            print(f"refreshed {S.SUMS}")
 
 
 if __name__ == "__main__":

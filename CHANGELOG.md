@@ -1,5 +1,26 @@
 # Changelog
 
+## Unreleased — release-integrity fix
+
+No corpus change: `data/webinject2026.csv` and every other released file is
+byte-identical to 3.0.0, and `src/config.VERSION` is unchanged.
+
+### Fixed
+- **`SHA256SUMS` shipped five stale hashes.** 3.0.0 published correct digests for
+  the corpus CSV, Parquet and payload pool, but stale ones for `manifest.json`,
+  `baselines.json`, `evaluation.json`, `csic_parsed.csv` and `ecml_parsed.csv`,
+  so `shasum -a 256 -c SHA256SUMS` reported 5 FAILED against an intact release.
+  The manifest was hand-maintained while its eight files are written by three
+  entry points at three different times. Regenerated from the released files.
+
+### Added
+- **`src/checksums.py`** owns the manifest. `python -m src.checksums` rewrites it;
+  `--check` verifies and exits non-zero. `src.build` refreshes it after every
+  build, and `src.baselines` / `src.evaluate` refresh it when `--json` writes a
+  tracked file, so the manifest can no longer drift behind the artefacts.
+- **CI gate `Released files match SHA256SUMS`**, run against a fresh checkout
+  before the rebuild, so a commit whose files and manifest disagree fails.
+
 ## 3.0.0 — leak-audited benign side, modern surface, harder protocols
 
 v2.1 made the *attack* side rigorous (1,494 payload groups, payload-disjoint,

@@ -237,7 +237,9 @@ the raw `path`/`query`/`body`/`headers`).
 
 - **Versioned and reproducible.** `src/config.VERSION`; every build writes
   `data/manifest.json` (seed, counts, leakage checks). Integrity via
-  `SHA256SUMS`.
+  `SHA256SUMS` — verify a download with `shasum -a 256 -c SHA256SUMS` (or
+  `python -m src.checksums --check`, which CI runs on every push). The build and
+  the `--json` writers regenerate the manifest, so it is not maintained by hand.
 - **Regenerate:** `python -m src.build && python -m src.validate`. A change that
   reintroduces any shortcut fails the gate, so the corpus cannot silently
   regress.

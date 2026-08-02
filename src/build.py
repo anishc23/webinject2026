@@ -39,6 +39,7 @@ from datetime import datetime, timezone
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src import checksums as S
 from src import config as C
 from src import payloads as P
 from src import vocab as V
@@ -606,6 +607,13 @@ def main():
           "| spanning split_struct:", man["groups_spanning_split_struct"])
     print("groups   ", man["groups"])
     print(f"\nwrote {args.out}")
+
+    # The build rewrites four tracked artefacts; keep the release manifest in
+    # step with them rather than updating it by hand at tag time.
+    lines, missing = S.write()
+    print(f"wrote {S.SUMS} ({len(lines)} files)")
+    if missing:
+        print("  not on disk, left out:", ", ".join(missing))
 
 
 if __name__ == "__main__":
