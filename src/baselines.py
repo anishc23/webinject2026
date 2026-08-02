@@ -353,7 +353,10 @@ def main():
         print("=" * 92)
         names = ["webinject", "csic", "ecml"]
         present = [n for n in names if n in cross or any(n in v for v in cross.values())]
-        print(f"  {'train \\\\ test':<14}" + "".join(f"{n:>16}" for n in present))
+        # Hoisted out of the f-string: a backslash in an expression part is a
+        # SyntaxError before 3.12 (PEP 701), and we support 3.10+.
+        corner = "train \\ test"
+        print(f"  {corner:<14}" + "".join(f"{n:>16}" for n in present))
         for tn in present:
             if tn not in cross:
                 continue

@@ -847,7 +847,10 @@ def cookie(rng, tier, sid=None):
     sid = sid or "".join(rng.choices(string.ascii_lowercase + string.digits, k=26))
     parts = [f"PHPSESSID={sid}", f"lang={rng.choice(LANGS)}"]
     if tier != "routine" and rng.random() < 0.5:
-        parts.append(f"prefs={urllib.parse.quote_plus('{\"theme\":\"dark\",\"n\":2}')}")
+        # Hoisted out of the f-string: a backslash in an expression part is a
+        # SyntaxError before 3.12 (PEP 701), and we support 3.10+.
+        prefs = urllib.parse.quote_plus('{"theme":"dark","n":2}')
+        parts.append(f"prefs={prefs}")
     if rng.random() < 0.3:
         parts.append(f"cart={rng.randint(1, 9)}")
     return "; ".join(parts)

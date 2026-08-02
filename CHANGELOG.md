@@ -13,7 +13,17 @@ byte-identical to 3.0.0, and `src/config.VERSION` is unchanged.
   The manifest was hand-maintained while its eight files are written by three
   entry points at three different times. Regenerated from the released files.
 
+- **The package did not parse on Python 3.10 or 3.11.** `src/vocab.py` and
+  `src/baselines.py` each held an f-string with a backslash in the *expression*
+  part — a `SyntaxError` before PEP 701 landed in 3.12. `requirements.txt`
+  advertises 3.10+, so a reviewer on the supported floor could not import the
+  package at all, and CI (pinned to 3.11) failed at the rebuild step on every
+  push. Both are hoisted into variables; output is unchanged and the corpus
+  rebuilds byte-identical.
+
 ### Added
+- **CI matrix over Python 3.10 / 3.11 / 3.12**, spanning the PEP 701 boundary.
+  A single-version matrix is what let the f-strings above ship.
 - **`src/checksums.py`** owns the manifest. `python -m src.checksums` rewrites it;
   `--check` verifies and exits non-zero. `src.build` refreshes it after every
   build, and `src.baselines` / `src.evaluate` refresh it when `--json` writes a
