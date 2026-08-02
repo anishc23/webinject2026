@@ -1,0 +1,96 @@
+{
+  "name": "WebInject2026",
+  "version": "3.0.0",
+  "built_utc": "2026-08-02T05:03:51.647823+00:00",
+  "seed": 42,
+  "capture": false,
+  "rows": 61400,
+  "duplicates_removed": 0,
+  "label": {
+    "0": 45400,
+    "1": 16000
+  },
+  "attack_type": {
+    "benign": 45400,
+    "xss": 3601,
+    "ssrf": 811,
+    "sqli": 3571,
+    "traversal": 917,
+    "ssti": 1527,
+    "deser": 781,
+    "xxe": 251,
+    "protopollute": 675,
+    "cmdi": 734,
+    "nosqli": 1264,
+    "jndi": 981,
+    "smuggle": 245,
+    "ldapi": 478,
+    "crlf": 164
+  },
+  "family": {
+    "benign": 43000,
+    "benign_ambiguous": 2400,
+    "xss": 3601,
+    "ssrf": 811,
+    "sqli": 3571,
+    "traversal": 917,
+    "ssti": 1527,
+    "deser": 781,
+    "xxe": 251,
+    "protopollute": 675,
+    "cmdi": 734,
+    "nosqli": 1264,
+    "jndi": 981,
+    "smuggle": 245,
+    "ldapi": 478,
+    "crlf": 164
+  },
+  "tier": {
+    "routine": 26000,
+    "hard_negative": 17000,
+    "ambiguous": 2400,
+    "attack": 16000
+  },
+  "content_type": {
+    "query": 31644,
+    "multipart": 5234,
+    "json": 15607,
+    "form": 7107,
+    "graphql": 1808
+  },
+  "placement": {
+    "query": 8673,
+    "body": 6840,
+    "header": 487
+  },
+  "evasion_used": 5538,
+  "evasion_chained": 835,
+  "split": {
+    "train": 42980,
+    "test": 12287,
+    "val": 6133
+  },
+  "split_struct": {
+    "train": 44515,
+    "test": 11527,
+    "val": 5358
+  },
+  "app": {
+    "bwapp": 21170,
+    "juice": 22721,
+    "dvwa": 17509
+  },
+  "sessions": 8223,
+  "groups_spanning_split": 0,
+  "groups_spanning_split_struct": 0,
+  "groups": {
+    "attack_total": 1961,
+    "attack_test": 393,
+    "attack_test_per_family_min": 11,
+    "attack_templates": 84,
+    "attack_templates_test": 26,
+    "benign_cores": 2340,
+    "ambiguous_cores": 823,
+    "ambiguous_verbatim_rows": 827
+  }
+}

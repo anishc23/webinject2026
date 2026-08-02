@@ -1,0 +1,38 @@
+name: quality-gate
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install
+        run: pip install -r requirements.txt
+
+      - name: Rebuild corpus (offline, deterministic)
+        run: python -m src.build --no-parquet
+
+      - name: Fail if the committed CSV is not reproducible
+        run: |
+          git diff --exit-code -- data/webinject2026.csv \
+            || (echo "::error::committed CSV differs from a clean rebuild" && exit 1)
+
+      - name: Quality gate
+        run: python -m src.validate
+
+      - name: Tests
+        run: pytest -q
+
+      - name: Reference baselines
+        run: python -m src.baselines --fast
+
+      - name: Evaluation protocols
+        run: python -m src.evaluate --protocol disjoint

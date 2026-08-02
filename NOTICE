@@ -1,0 +1,20 @@
+WebInject2026 — third-party attributions
+========================================
+
+Attack payloads
+  Portions of the attack payload set derive from PayloadsAllTheThings
+  (https://github.com/swisskyrepo/PayloadsAllTheThings), licensed under the MIT
+  License. A curated seed subset is embedded in src/payloads.py so the corpus is
+  reproducible without downloading that repository; if the repository is placed
+  under data/patt/, the build widens each family from it.
+
+Target applications (referenced by name only; not redistributed)
+  DVWA (Damn Vulnerable Web Application) — GPL-3.0
+  OWASP Juice Shop — MIT
+  bWAPP (buggy Web Application) — GPL
+
+Comparison datasets (redistributed under data/ for research comparison)
+  CSIC 2010 HTTP dataset — Spanish National Research Council (CSIC)
+  ECML/PKDD 2007 Discovery Challenge dataset
+  These files (data/csic_parsed.csv, data/ecml_parsed.csv) are reparsed to a
+  common schema and remain subject to their original terms.

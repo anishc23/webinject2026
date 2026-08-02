@@ -1,0 +1,122 @@
+{
+  "disjoint": {
+    "n": 12287,
+    "n_attack": 3206,
+    "f1": 0.9560865353567969,
+    "precision": 0.9909638554216867,
+    "recall": 0.9235807860262009,
+    "pr_auc": 0.9951791556900312,
+    "tpr_at_1pct_fpr": 0.972239550842171,
+    "tpr_at_0.1pct_fpr": 0.8705552089831566,
+    "ppv_at_prevalence@1pctFPR": {
+      "0.005": 0.328210981642508,
+      "0.010": 0.4954744442007077,
+      "0.050": 0.8365225139152045,
+      "0.254": 0.970677120234552
+    }
+  },
+  "structural": {
+    "n": 11527,
+    "n_attack": 2443,
+    "f1": 0.882219190541155,
+    "precision": 0.9923273657289002,
+    "recall": 0.7941056078591895,
+    "pr_auc": 0.9881959132072502,
+    "tpr_at_1pct_fpr": 0.9471960704052395,
+    "tpr_at_0.1pct_fpr": 0.7724109701187065,
+    "ppv_at_prevalence@1pctFPR": {
+      "0.005": 0.3224830919355535,
+      "0.010": 0.4889520915696968,
+      "0.050": 0.8329223913583402,
+      "0.254": 0.9699251517515126
+    }
+  },
+  "lofo": {
+    "cmdi": {
+      "n_test": 146,
+      "zeroshot_recall": 0.2534246575342466,
+      "tpr_at_1pct_fpr": 0.5273972602739726
+    },
+    "crlf": {
+      "n_test": 33,
+      "zeroshot_recall": 0.7575757575757576,
+      "tpr_at_1pct_fpr": 0.8787878787878788
+    },
+    "deser": {
+      "n_test": 159,
+      "zeroshot_recall": 0.44025157232704404,
+      "tpr_at_1pct_fpr": 0.660377358490566
+    },
+    "jndi": {
+      "n_test": 192,
+      "zeroshot_recall": 0.546875,
+      "tpr_at_1pct_fpr": 0.7552083333333334
+    },
+    "ldapi": {
+      "n_test": 95,
+      "zeroshot_recall": 0.28421052631578947,
+      "tpr_at_1pct_fpr": 0.45263157894736844
+    },
+    "nosqli": {
+      "n_test": 253,
+      "zeroshot_recall": 0.3715415019762846,
+      "tpr_at_1pct_fpr": 0.5177865612648221
+    },
+    "protopollute": {
+      "n_test": 137,
+      "zeroshot_recall": 0.15328467153284672,
+      "tpr_at_1pct_fpr": 0.36496350364963503
+    },
+    "smuggle": {
+      "n_test": 48,
+      "zeroshot_recall": 0.875,
+      "tpr_at_1pct_fpr": 0.9166666666666666
+    },
+    "sqli": {
+      "n_test": 719,
+      "zeroshot_recall": 0.17663421418636996,
+      "tpr_at_1pct_fpr": 0.4144645340751043
+    },
+    "ssrf": {
+      "n_test": 162,
+      "zeroshot_recall": 0.32098765432098764,
+      "tpr_at_1pct_fpr": 0.5925925925925926
+    },
+    "ssti": {
+      "n_test": 301,
+      "zeroshot_recall": 0.3853820598006645,
+      "tpr_at_1pct_fpr": 0.5116279069767442
+    },
+    "traversal": {
+      "n_test": 183,
+      "zeroshot_recall": 0.22404371584699453,
+      "tpr_at_1pct_fpr": 0.43169398907103823
+    },
+    "xss": {
+      "n_test": 725,
+      "zeroshot_recall": 0.14206896551724138,
+      "tpr_at_1pct_fpr": 0.2910344827586207
+    },
+    "xxe": {
+      "n_test": 53,
+      "zeroshot_recall": 0.6792452830188679,
+      "tpr_at_1pct_fpr": 0.9433962264150944
+    }
+  },
+  "evasion": {
+    "_train_note": "trained on plain (evasion=none) attacks only",
+    "all_evaded": {
+      "n": 1137,
+      "recall": 0.5787159190853123,
+      "tpr_at_1pct_fpr": 0.8531222515391381
+    },
+    "single": {
+      "n": 970,
+      "recall": 0.5835051546391753
+    },
+    "chained": {
+      "n": 167,
+      "recall": 0.5508982035928144
+    }
+  }
+}
