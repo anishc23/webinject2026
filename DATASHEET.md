@@ -243,7 +243,7 @@ the raw `path`/`query`/`body`/`headers`).
     independently with routine-tier filler while hard negatives carried prose
     cores, so carrier register encoded the tier and the tier encoded the label.
     v4 builds each attack as the counterfactual twin of a benign row; carrier
-    AUC is now **0.539**. The residual 0.818 against `hard_negative` alone is
+    AUC is now **0.608**. The residual 0.818 against `hard_negative` alone is
     tier composition, not label signal: the two benign tiers are separable from
     each other at AUC 1.000 with no label involved, and attacks are a mixture of
     both carrier types.
@@ -261,9 +261,20 @@ the raw `path`/`query`/`body`/`headers`).
     alongside F1. Threshold-free, transfer is AUC 0.61 against CSIC-2010 and
     0.77 against ECML/PKDD, with the model firing on 100% of rows at threshold
     0.5. Quote the AUC, not the F1.
+  - **Length parity within a pair** (added with the fix, and now checked).
+    Appending a payload makes an attack longer than its own twin -- 100% of
+    pairs before the fix, with a length-only AUC of 0.611. Length was v1's
+    original shortcut, so reintroducing it while closing the register leak would
+    trade one artefact for another. The benign twin now receives a benign span
+    of equal length in the same slot: 80.3% of pairs match exactly and
+    length-only AUC falls to 0.567. The corpus-wide length gap does not reach
+    zero (6.2%) and should not: only 16,000 of 45,400 benign rows can be twins,
+    so attack rows carry an extra span most benign rows do not. That is a real
+    property of injection. What is guaranteed, and enforced by `pair_integrity`,
+    is parity *within* a pair.
 - **The corpus is harder than v3.0.0, deliberately.** Char n-gram F1 falls 95.6
-  -> 91.0 and the structural gap widens from 9.8 to 33.1 points. The word n-gram
-  baseline falls from F1 82.1 to 29.9, which is the clearest evidence the
+  -> 92.4 and the structural gap widens from 9.8 to 28.9 points. The word n-gram
+  baseline falls from F1 82.1 to 30.3, which is the clearest evidence the
   register shortcut is gone: a word-level model had been reading carrier prose.
 - **25 rows contain raw NUL bytes** in `body` and `payload_raw` (20 traversal,
   5 cmdi; 12 train / 10 test / 3 val). This is faithful — null-byte injection

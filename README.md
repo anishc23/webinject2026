@@ -3,7 +3,7 @@
 A contemporary, leakage-audited corpus for **web-application injection-attack
 detection**. 61,400 labelled HTTP requests across three applications and fourteen
 attack families, shipped with fixed payload-disjoint **and** template-disjoint
-splits and an automated 29-check quality gate that fails the build if any known
+splits and an automated 30-check quality gate that fails the build if any known
 shortcut or leak reappears.
 
 > **v3.0 rebuild.** v2.1 made the *attack* side rigorous but left two measurable
@@ -23,7 +23,7 @@ shortcut or leak reappears.
 > vocabulary at AUC 0.904. v4 builds every attack as the counterfactual twin of
 > a benign row (shared `pair_id`), decides all split membership before
 > generation, and gives sessions real burst structure. Carrier-only AUC is now
-> 0.539 and the word n-gram baseline falls from F1 82.1 to 29.9. The gate is 29
+> 0.608 and the word n-gram baseline falls from F1 82.1 to 30.3. The gate is 30
 > checks. See [CHANGELOG.md](CHANGELOG.md).
 
 New to the problem, or preparing a talk on it?
@@ -64,7 +64,7 @@ pip install -r requirements.txt
 shasum -a 256 -c SHA256SUMS  # confirm the files you have are the files released
 python -m src.build          # rebuild the corpus offline (reproducible, seed=42)
 python -m src.validate       # 25-check quality gate; non-zero exit on any FAIL
-python -m src.audit_gaps     # 4 construction checks (register, splits, sessions, transfer)
+python -m src.audit_gaps     # 5 construction checks (register, splits, sessions, pairs, transfer)
 python -m src.baselines      # reference results table
 python -m src.evaluate       # generalisation protocols + prevalence correction
 python -m src.figures        # the eight paper figures, from the shipped result JSONs
@@ -102,32 +102,32 @@ group-bootstrap CIs, and cross-dataset transfer. Payload-disjoint headline:
 
 | Baseline | F1 | PR-AUC | TPR@1%FPR | TPR@0.1%FPR |
 |---|--:|--:|--:|--:|
-| length only (1 feature) | 0.0 | 32.9 | 0.0 | 0.0 |
-| special-char count (1 feature) | 7.2 | 37.2 | 3.9 | 0.8 |
-| rule signature (14 regex) | 59.4 | 51.0 | 0.9 | 0.0 |
-| word n-gram (1–2) + LogReg | 29.9 | 59.1 | 26.6 | 20.9 |
-| char n-gram (3–5) + LogReg | **91.0** | 98.9 | 94.3 | **85.7** |
+| length only (1 feature) | 0.0 | 30.0 | 0.0 | 0.0 |
+| special-char count (1 feature) | **10.0** | 36.7 | 4.0 | **0.3** |
+| rule signature (14 regex) | 59.8 | 51.2 | 0.9 | 0.0 |
+| word n-gram (1–2) + LogReg | 30.3 | 58.6 | 22.4 | 17.8 |
+| char n-gram (3–5) + LogReg | **92.4** | 99.0 | 94.7 | **81.9** |
 
-The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 21 → 85.7** across
+The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 17.8 → 81.9** across
 baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
 
-- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 90.0 on a random
-  split, **85.7 on the payload-disjoint split, and 52.6 on the template-disjoint
-  (`split_struct`) split** — a 33.1-point structural gap. Report all three.
+- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 88.8 on a random
+  split, **81.9 on the payload-disjoint split, and 53.0 on the template-disjoint
+  (`split_struct`) split** — a 28.9-point structural gap. Report all three.
 - **Prevalence matters.** At the corpus's 26% attack rate the char n-gram's
-  precision at 1% FPR is 97.0%; at a realistic **0.5% prevalence it is 32.2%** (81.2%
+  precision at 1% FPR is 97.0%; at a realistic **0.5% prevalence it is 32.2%** (80.5%
   if you can hold FPR to 0.1%). Report the precision at *your* operating
   prevalence — `evaluate.py` prints the table.
 - **Group-bootstrap 95% CI** (char n-gram, disjoint, resampling payload groups —
-  not rows): F1 [89.0, 92.8], recall [80.3, 86.6], TPR@0.1%FPR [82.0, 89.8].
-- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 24.9%** · ssrf 62.8% · ssti 73.4% … xxe 97.8% · jndi 99.0%.
+  not rows): F1 [90.7, 93.9], recall [83.8, 89.4], TPR@0.1%FPR [77.1, 85.3].
+- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 33.8%** · ssti 75.9% · ssrf 76.0% … xxe 96.4% · jndi 99.1%.
 - **External validity.** Train here, test on CSIC-2010 / ECML-PKDD-2007: F1 falls
   from ~96 in-corpus to ~41–46 cross-corpus. **Do not quote that F1 on its own —
   it is threshold collapse, not graded degradation.** Recall is ~100% and
   precision equals the base rate, i.e. the model fires on nearly every row; an
   all-positive classifier scores exactly 41.0 at CSIC's base rate. Threshold-free
-  the picture is worse and more honest: **AUC 0.61 against CSIC-2010** and
-  **0.77 against ECML/PKDD**, with the model firing on 100% of rows. Synthetic detection signal does not
+  the picture is worse and more honest: **AUC 0.57 against CSIC-2010** and **0.76 against
+  ECML/PKDD**, with the model firing on 100% of rows at threshold 0.5. Synthetic detection signal does not
   transfer; see [DATASHEET.md](DATASHEET.md) > Limitations.
 
 ## Evaluation protocols
@@ -141,19 +141,27 @@ baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
 | `structural` | `split_struct` | whole payload *templates* held out — harder |
 | `lofo` | leave-one-family-out | zero-shot recall on an unseen attack family |
 | `evasion` | plain→evaded | recall on obfuscations the model never trained on |
+| `paired` | matched twins | does the score move *because of* the injected span? |
 
 Every protocol reports precision corrected to 0.5% / 1% / 5% / 26% attack
 prevalence. Reference char n-gram, payload-disjoint test:
 
-- **Structural gap.** TPR@0.1%FPR falls **85.7 → 52.6** from the payload-disjoint
-  to the template-disjoint split (33.1 pts) — the model leans on template shape.
-- **Zero-shot (LOFO) recall spans 6.9 → 80.8%.** A model that never saw the family
-  barely flags protopollute (6.9%), sqli (8.0%) or cmdi (9.6%), but transfers
-  to crlf (80.8%) and smuggle (80.0%). Injection detection does **not** generalise
-  uniformly across families.
+- **Structural gap.** TPR@0.1%FPR falls **81.9 → 53.0** from the payload-disjoint
+  to the template-disjoint split (28.9 pts) — the model leans on template shape.
+- **Zero-shot (LOFO) recall spans 6.9 → 84.6%.** A model that never saw the family
+  barely flags protopollute (6.9%) or xss (7.5%), but transfers to smuggle (84.6%)
+  and xxe (61.8%). Injection detection does **not** generalise uniformly across families.
+- **Matched-pair sensitivity (new in v4).** Every attack is the counterfactual
+  twin of a benign row, differing only by the injected span and matched on
+  length, so a score difference is attributable to that span alone. On the
+  3,236 test pairs the reference model scores the attack above its own twin in
+  **99.9%** of pairs (median delta **+0.90**, 10th percentile
+  +0.34), and cleanly crosses the 0.5 threshold in the right direction in
+  **86.7%**. A detector keying on carrier text rather than the injection shows a
+  delta near zero here even when its aggregate F1 looks strong — which no metric
+  over independently drawn rows can reveal.
 - **Evasion hold-out.** Trained on plain attacks only, recall on *evaded* test
-  attacks is **54.8%** (50.8% on chained transforms) — obfuscation the model
-  never saw roughly halves recall.
+  attacks is **54.4%** (58.8% on chained transforms).
 
 To grade your own detector on the fixed test split, pass one score per test row
 (in `df[df.split=='test']` order):
@@ -165,7 +173,7 @@ python -m src.evaluate --predictions my_scores.(csv|parquet|npy)
 ## What the quality gate enforces
 
 `python -m src.validate` fails the build unless every one of 25 checks passes, and
-`python -m src.audit_gaps` adds four construction checks that are equally blocking in CI:
+`python -m src.audit_gaps` adds five construction checks that are equally blocking in CI:
 
 - **ratio / duplicates / length_gap** — balance, no repeated payloads, benign vs attack median length within 15%
 - **char_class** — benign and attack share a character alphabet (≤3 attack-only characters)
@@ -197,7 +205,7 @@ src/validate.py    the 25-check quality gate
 src/baselines.py   reference results: F1/PR-AUC/TPR@FPR, prevalence-corrected precision, slice recall, bootstrap CIs, cross-dataset
 src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence correction, submission scorer (--predictions)
 src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate
-src/audit_gaps.py  four construction checks (register/splits/sessions/transfer); blocking in CI
+src/audit_gaps.py  five construction checks (register/splits/sessions/pairs/transfer); blocking in CI
 src/figures.py     the eight paper figures; reads the result JSONs, never recomputes
 data/webinject2026.csv       the corpus (22 columns; see DATASHEET.md > Schema)
 data/webinject2026.parquet   same rows, typed columnar copy (NUL stripped in 25 rows; see DATASHEET.md > Limitations)

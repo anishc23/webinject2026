@@ -23,7 +23,7 @@ so results are **not** comparable to a v3.0.0 run.
   from the same tier mixture -- same endpoint, same carrier values, same
   headers, same multipart boundary -- with the payload *appended* into one
   declared injection slot and nothing else changed. Both halves share a
-  `pair_id`. Carrier-only AUC falls to **0.539**.
+  `pair_id`, and matched on length. Carrier-only AUC falls to **0.608**.
 
   Appending rather than substituting is what did it: substituting removes the
   target slot's prose, so attacks carry systematically less benign vocabulary
@@ -61,29 +61,43 @@ so results are **not** comparable to a v3.0.0 run.
 
   | Metric (payload-disjoint) | v3.0.0 | v4.0.0 |
   |---|--:|--:|
-  | char n-gram F1 | 95.6 | 91.0 |
-  | char n-gram TPR@0.1%FPR | 87.1 | 85.7 |
-  | **word n-gram F1** | **82.1** | **29.9** |
+  | char n-gram F1 | 95.6 | 92.4 |
+  | char n-gram TPR@0.1%FPR | 87.1 | 81.9 |
+  | **word n-gram F1** | **82.1** | **30.3** |
   | length-only F1 | 0.4 | 0.0 |
-  | structural TPR@0.1%FPR | 77.2 | 52.6 |
-  | carrier-only AUC (register) | 0.904 | 0.539 |
+  | structural TPR@0.1%FPR | 77.2 | 53.0 |
+  | carrier-only AUC (register) | 0.904 | 0.608 |
 
   The word n-gram collapse is the clearest single piece of evidence: a
   word-level model scored 82.1 F1 on v3.0.0 because carrier register was
-  informative. With the register gone it scores 29.9. The structural gap widens
-  from 9.8 to 33.1 points, because template shape is now the signal that is
+  informative. With the register gone it scores 30.3. The structural gap widens
+  from 9.8 to 28.9 points, because template shape is now the signal that is
   actually being held out.
-- **Honesty ladder** (char n-gram TPR@0.1%FPR): random 90.0 -> payload-disjoint
-  85.7 -> template-disjoint 52.6.
+- **Honesty ladder** (char n-gram TPR@0.1%FPR): random 88.8 -> payload-disjoint
+  81.9 -> template-disjoint 53.0.
 - Zero-shot LOFO recall now spans 6.9% (prototype pollution) to 80.8% (CRLF).
 - Supported Python floor stays 3.11; CI matrix 3.11 / 3.12.
 
 ### Added
-- **`src/audit_gaps.py` is a blocking CI step**, so the gate is effectively 29
-  checks. It shipped failing 0/4 against v3.0.0 and passes 4/4 here.
-- **`pair_id`** column, and a matched-pair structure the evaluation can exploit:
-  within a pair the only difference is the injected span, so a score difference
-  is attributable to it.
+- **`src/audit_gaps.py` is a blocking CI step**, so the gate is effectively 30
+  checks. It shipped failing 0/4 against v3.0.0 and passes 5/5 here, the fifth
+  being `pair_integrity`.
+- **`pair_id`** column and a **matched-pair evaluation protocol**
+  (`python -m src.evaluate --protocol paired`). Within a pair the only
+  difference is the injected span -- matched on length too -- so a score
+  difference is attributable to it. The reference model scores the attack above
+  its own twin in **99.9%** of 3,236 test pairs (median delta
+  +0.90) and crosses 0.5 in the right direction in 86.7%. A detector
+  reading carrier text rather than the injection shows a delta near zero here
+  even at high aggregate F1, which no metric over independently drawn rows can
+  reveal.
+- **Within-pair length parity.** Appending a payload made every attack longer
+  than its twin (100% of pairs, length-only AUC 0.611), so the benign twin now
+  receives a benign span of equal length in the same slot: 80.3% of pairs match
+  exactly and length-only AUC falls to 0.567. The trade is a carrier AUC of
+  0.608 rather than 0.539, since the twin carries filler words the payload does
+  not; both sit well under the 0.75 ceiling, and matched length is what makes
+  the paired delta attributable to span *content*.
 
 ## Unreleased — release-integrity fix
 

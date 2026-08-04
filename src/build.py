@@ -382,15 +382,8 @@ def _paired_records(app, ep, pool, rng, pair_no):
     tier = "hard_negative" if core_idx is not None else "routine"
     values, carrier, core_id = _benign_values(app, ep, tier, rng, core_idx=core_idx)
 
-    benign = _assemble(app, ep, values, rng, extra=None)
     pair_id = f"pair-{pair_no:06d}"
-    benign.update({
-        "label": 0, "attack_type": "benign", "family": "benign",
-        "tier": tier, "evasion": "none", "placement": "",
-        "template": f"benign:{tier}",
-        "group": core_id or f"benR-{rng.getrandbits(48):x}",
-        "pair_id": pair_id, "split": split, "split_struct": split_struct,
-    })
+    _twin_values = list(values)
 
     if rng.random() < C.EVASION_RATE:
         payload, evasion = P.apply_evasion(raw, fam, rng, C.EVASION_CHAIN_RATE)
@@ -407,13 +400,53 @@ def _paired_records(app, ep, pool, rng, pair_no):
     # twins -- a residual register signal measured at AUC 0.840. Appending keeps
     # the carrier identical and makes the injected span the only difference,
     # which is also how real injections arrive (?q=shoes' OR 1=1--).
-    def _inject(v):
+    prefix = rng.random() < 0.15
+
+    def _append(v, span):
         v = str(v)
         if not v:
-            return payload
-        return f"{payload}{v}" if rng.random() < 0.15 else f"{v}{payload}"
+            return span
+        return f"{span}{v}" if prefix else f"{v}{span}"
 
-    atk_values = [(n, _inject(v) if n == target else v) for n, v in values]
+    # Trade-off, measured three ways and settled deliberately. With no decoy at
+    # all the carrier-only AUC is 0.539 but every attack is longer than its own
+    # twin (100% of pairs, length-only AUC 0.611). With this decoy the length
+    # signal drops to 0.567 and 80% of pairs match exactly, at the cost of the
+    # carrier AUC rising to ~0.61 -- the benign twin necessarily carries filler
+    # words the attack's payload does not. Drawing the decoy from the
+    # punctuation-dense hard_negative generator instead was worse on both counts
+    # (0.633 / 0.569). Both figures sit well under the 0.75 ceiling, and matched
+    # length is what makes the paired protocol's score delta attributable to the
+    # span's content rather than its size.
+    #
+    # The benign twin gets a benign span of comparable length in the same slot,
+    # so the pair differs only in whether the appended span is injective -- not
+    # in how much text it carries. Without this, appending made every attack
+    # longer than its own twin (100% of pairs, 11.3% median gap corpus-wide) and
+    # a length-only model reached AUC 0.611. Length is the oldest shortcut in
+    # this corpus's history; reintroducing it while closing the register leak
+    # would trade one artefact for another.
+    ftype = dict(ep["params"]).get(target)
+    decoy = ""
+    while len(decoy) < len(payload):
+        nxt = str(V.value_for(ftype, rng, tier)) if ftype else ""
+        if not nxt:
+            break
+        decoy = f"{decoy} {nxt}".strip()
+    decoy = decoy[:len(payload)]   # exact, so the pair matches on length too
+
+    values = [(n, _append(v, decoy) if n == target else v) for n, v in values]
+    benign = _assemble(app, ep, values, rng, extra=None)
+    benign.update({
+        "label": 0, "attack_type": "benign", "family": "benign",
+        "tier": tier, "evasion": "none", "placement": "",
+        "template": f"benign:{tier}",
+        "group": core_id or f"benR-{rng.getrandbits(48):x}",
+        "pair_id": pair_id, "split": split, "split_struct": split_struct,
+    })
+
+    atk_values = [(n, _append(v, payload) if n == target else v)
+                  for n, v in _twin_values]
     attack = _assemble(app, ep, atk_values, rng, extra=None,
                        reuse=benign["_envelope"])
     attack.update({

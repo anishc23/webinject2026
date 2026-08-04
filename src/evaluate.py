@@ -205,6 +205,54 @@ def _print_metrics(name, m):
     print(f"  precision at 1% FPR by attack prevalence:  {cells}")
 
 
+
+def protocol_paired(df):
+    """Matched-pair sensitivity: does the score move *because of* the injection?
+
+    Every attack row is the counterfactual twin of a benign row -- identical
+    endpoint, carrier values, headers and boundary, differing only by the span
+    appended into one declared slot. So within a pair the score difference is
+    attributable to that span and nothing else, which no aggregate metric over
+    independently drawn rows can establish.
+
+    Reported:
+      paired_accuracy  share of test pairs the model orders correctly, i.e.
+                       scores the attack above its own twin. This is a
+                       within-pair comparison, so it is unaffected by the class
+                       prior and by any global calibration error.
+      delta_*          distribution of (attack score - twin score). A detector
+                       that keys on carrier text rather than on the injected
+                       span shows a delta concentrated near zero even when its
+                       aggregate F1 is high.
+      flip_rate        share of pairs where the model crosses 0.5 in the right
+                       direction: benign twin below, attack above. The
+                       operationally honest version of recall at a fixed
+                       threshold.
+    """
+    tr = df[df.split == "train"]
+    te = df[(df.split == "test") & (df.pair_id.astype(str) != "")]
+    if te.empty:
+        return {}
+    v, m = _fit_char(tr.payload.astype(str), tr.label)
+    score = m.predict_proba(v.transform(te.payload.astype(str)))[:, 1]
+    t = te.assign(score=score)
+
+    piv = t.pivot_table(index="pair_id", columns="label", values="score",
+                        aggfunc="first").dropna()
+    if piv.empty or 0 not in piv.columns or 1 not in piv.columns:
+        return {}
+    delta = (piv[1] - piv[0]).to_numpy()
+    return {
+        "n_pairs": int(len(piv)),
+        "paired_accuracy": float((delta > 0).mean()),
+        "delta_mean": float(delta.mean()),
+        "delta_median": float(np.median(delta)),
+        "delta_p10": float(np.percentile(delta, 10)),
+        "flip_rate": float(((piv[0] < 0.5) & (piv[1] >= 0.5)).mean()),
+        "twin_false_positive_rate": float((piv[0] >= 0.5).mean()),
+    }
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--csv", default=os.path.join(DATA, "webinject2026.csv"))
@@ -212,7 +260,8 @@ def main():
     ap.add_argument("--predictions", default=None,
                     help="score an external predictions file on the test split")
     ap.add_argument("--protocol", default="all",
-                    choices=["all", "disjoint", "structural", "lofo", "evasion"])
+                    choices=["all", "disjoint", "structural", "lofo", "evasion",
+                             "paired"])
     args = ap.parse_args()
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -257,6 +306,20 @@ def main():
         for fam, v in sorted(lofo.items(), key=lambda kv: kv[1]["zeroshot_recall"]):
             print(f"     {fam:14s} recall {v['zeroshot_recall']*100:5.1f}  "
                   f"TPR@1%FPR {v['tpr_at_1pct_fpr']*100:5.1f}  (n={v['n_test']})")
+
+    if args.protocol in ("all", "paired"):
+        pr = protocol_paired(df)
+        if pr:
+            results["paired"] = pr
+            print("\n5. MATCHED-PAIR SENSITIVITY  (attack vs its own benign twin)")
+            print(f"     pairs in test            {pr['n_pairs']:,}")
+            print(f"     paired accuracy          {pr['paired_accuracy']*100:5.1f}"
+                  "   (attack scored above its twin)")
+            print(f"     median score delta       {pr['delta_median']:+.3f}")
+            print(f"     10th-pct score delta     {pr['delta_p10']:+.3f}")
+            print(f"     clean flip rate          {pr['flip_rate']*100:5.1f}"
+                  "   (twin below 0.5, attack above)")
+            print(f"     twin false-positive rate {pr['twin_false_positive_rate']*100:5.1f}")
 
     if args.protocol in ("all", "evasion"):
         ev = protocol_evasion(df)

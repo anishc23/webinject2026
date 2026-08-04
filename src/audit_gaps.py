@@ -16,6 +16,8 @@ is now a blocking CI step alongside `src.validate` -- so the gate is effectively
   session_signal         `session` carries no within-session correlation, so the
                          column cannot support the sequence modelling the
                          datasheet advertises
+  pair_integrity         every counterfactual pair is complete, sits wholly in
+                         one split, and matches its twin on length
   transfer_ranking       cross-corpus transfer reported as F1 at a fixed
                          threshold hides threshold collapse; measure AUC/PR-AUC
                          and show the predicted-positive rate
@@ -46,6 +48,7 @@ WORD = re.compile(r"[A-Za-z]{2,}")
 REGISTER_AUC_CEILING = 0.75
 STRUCT_SPREAD_MAX = 0.05
 SESSION_RATIO_FLOOR = 1.15
+PAIR_LEN_PARITY_FLOOR = 0.75
 
 _results = []
 
@@ -171,6 +174,43 @@ def check_session_signal(df):
            f"(floor {SESSION_RATIO_FLOOR}); {len(g):,} sessions")
 
 
+
+def check_pair_integrity(df):
+    """The counterfactual guarantee, asserted rather than assumed.
+
+    Pairing only buys anything if the pairs are actually intact: both halves
+    present, on the same side of both splits, and matched on length. That last
+    one is not cosmetic. Appending a payload makes an attack longer than its own
+    twin, and length is the oldest shortcut in this corpus's history -- v1 was
+    solvable from character class, and a length gap is the same kind of defect.
+    The benign twin therefore receives a benign span of the same length in the
+    same slot, so the pair differs only in whether the span is injective.
+
+    The corpus-wide length gap does not go to zero, and should not: only 16,000
+    of 45,400 benign rows can be twins, so attack rows carry an extra span that
+    most benign rows do not. That is a real property of injection, not an
+    artefact. What must hold is parity *within* a pair.
+    """
+    pr = df[df["pair_id"].astype(str) != ""]
+    if pr.empty:
+        report("pair_integrity", False, "no pair_id column populated")
+        return
+    sizes = pr.groupby("pair_id").size()
+    complete = int((sizes == 2).sum())
+    orphans = int((sizes != 2).sum())
+    spanning = int((pr.groupby("pair_id")["split"].nunique() > 1).sum())
+    spanning += int((pr.groupby("pair_id")["split_struct"].nunique() > 1).sum())
+
+    ln = pr.assign(_n=pr["payload"].astype(str).str.len())
+    piv = ln.pivot_table(index="pair_id", columns="label", values="_n",
+                         aggfunc="first").dropna()
+    equal = float((piv[1] == piv[0]).mean()) if not piv.empty else 0.0
+    ok = orphans == 0 and spanning == 0 and equal >= PAIR_LEN_PARITY_FLOOR
+    report("pair_integrity", ok,
+           f"{complete:,} complete pairs, {orphans} orphaned, {spanning} spanning a split; "
+           f"within-pair length parity {equal*100:.1f}% (floor {PAIR_LEN_PARITY_FLOOR*100:.0f}%)")
+
+
 def check_transfer_ranking(df):
     """Cross-corpus transfer must be *reported* threshold-free.
 
@@ -229,6 +269,7 @@ def main():
     check_lexical_register_leak(df)
     check_struct_split_balance(df)
     check_session_signal(df)
+    check_pair_integrity(df)
     check_transfer_ranking(df)
     print("=" * 76)
     failed = [n for n, ok, _ in _results if not ok]
