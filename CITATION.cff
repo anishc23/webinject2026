@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this corpus, please cite it as below."
 title: "WebInject2026: A Leakage-Audited Corpus for Web Injection Detection"
-version: 3.0.0
+version: 4.0.0
 date-released: 2026-08-02
 type: dataset
 license: CC-BY-4.0
@@ -10,7 +10,7 @@ abstract: >-
   A contemporary, leakage-audited corpus for web-application injection-attack
   detection: 61,400 labelled HTTP requests across three deliberately vulnerable
   practice applications and fourteen attack families, with fixed
-  payload-disjoint and template-disjoint splits and an automated 25-check
+  payload-disjoint and template-disjoint splits and an automated 29-check
   quality gate that fails the build if a known shortcut or label leak reappears.
 keywords:
   - web application security

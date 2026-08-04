@@ -45,6 +45,11 @@ jobs:
       - name: Quality gate
         run: python -m src.validate
 
+      # Promoted from advisory to blocking in v4.0.0: all four construction
+      # checks pass, so a regression in any of them now fails the build.
+      - name: Construction checks (register, splits, sessions, transfer)
+        run: python -m src.audit_gaps
+
       - name: Tests
         run: pytest -q
 

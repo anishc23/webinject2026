@@ -23,6 +23,24 @@ What changed in v3
   * A second split column, `split_struct`, holds out whole payload *templates*,
     not just strings — a harder generalisation test.
   * New columns: `content_type`, `template`, `split_struct`, `session`, `status`.
+
+What changed in v4
+  * **Counterfactual pairing.** Every attack row is the twin of a benign row: same
+    endpoint, same carrier values, same headers, same multipart boundary, with a
+    payload appended into one declared injection slot and nothing else altered.
+    Both halves share a `pair_id`. v3 generated attacks independently and gave
+    them routine-tier filler while hard negatives carried prose cores, so carrier
+    vocabulary encoded the tier and the tier encoded the label -- the label was
+    recoverable at AUC 0.904 from ordinary words with all injection syntax
+    deleted. Pairing takes that to 0.539.
+  * **Splits decided before generation.** Each payload group, template and benign
+    core is assigned to a (split, split_struct) cell up front, and generation only
+    ever pairs units from the same cell. A pair therefore cannot straddle a split,
+    which post-hoc grouping could not guarantee.
+  * **Bursty sessions.** A minority of attacker sessions carry a high
+    within-session attack rate. v3's sessions were i.i.d. (variance ratio 0.989),
+    so the column could not support the sequence modelling it advertised.
+  * New column: `pair_id`.
 """
 
 import argparse
@@ -49,9 +67,15 @@ DATA = os.path.join(ROOT, "data")
 CORPUS = os.path.join(ROOT, "corpus")
 PATT_ROOT = os.path.join(DATA, "patt")
 
-# v4 prototype: build every attack as the counterfactual twin of a benign row.
-# Off by default so `main` keeps producing the published v3.0.0 corpus.
-PAIRED = os.environ.get("WEBINJECT_PAIRED", "0") == "1"
+# v4 construction: every attack is the counterfactual twin of a benign row, and
+# every split membership is decided before generation. This is what v4.0.0 IS,
+# so it is the default; set WEBINJECT_PAIRED=0 to build the v3-style corpus for
+# a side-by-side comparison.
+PAIRED = os.environ.get("WEBINJECT_PAIRED", "1") == "1"
+
+# Within-session attack rates for a bursty (PAIRED) session layout: a minority
+# of attacker sessions at SESS_HI, the rest mostly benign at SESS_LO.
+SESS_HI, SESS_LO = 0.75, 0.10
 
 
 # ------------------------------------------------------- record synthesis ---
@@ -147,7 +171,7 @@ def _assemble(app, ep, values, rng, extra, reuse=None):
     return rec
 
 
-def _benign_values(app, ep, tier, rng):
+def _benign_values(app, ep, tier, rng, core_idx=None):
     """The parameter values of one benign request, before assembly.
 
     Split out of `_benign_record` so a counterfactual attack twin can be built
@@ -161,7 +185,12 @@ def _benign_values(app, ep, tier, rng):
     if tier == "hard_negative":
         text_params = [n for n, t in ep["params"] if t in C.TEXT_TYPES]
         carrier = rng.choice(text_params)
-        core_text, core_id = V.core_value(rng)
+        if core_idx is None:
+            core_text, core_id = V.core_value(rng)
+        else:
+            # Pre-assigned core: its split cell was fixed before generation, so
+            # the pair cannot straddle a split.
+            core_text, core_id = V.BENIGN_CORES[core_idx], f"benH-{core_idx:05d}"
 
     values = []
     for name, ftype in ep["params"]:
@@ -172,14 +201,17 @@ def _benign_values(app, ep, tier, rng):
     return values, carrier, core_id
 
 
-def _benign_record(app, ep, tier, rng):
+def _benign_record(app, ep, tier, rng, core_idx=None):
     """One benign request. Hard negatives carry exactly one groupable core."""
     carrier = None
     core_id = None
     if tier == "hard_negative":
         text_params = [n for n, t in ep["params"] if t in C.TEXT_TYPES]
         carrier = rng.choice(text_params)
-        core_text, core_id = V.core_value(rng)
+        if core_idx is None:
+            core_text, core_id = V.core_value(rng)
+        else:
+            core_text, core_id = V.BENIGN_CORES[core_idx], f"benH-{core_idx:05d}"
 
     values = []
     for name, ftype in ep["params"]:
@@ -203,11 +235,14 @@ def _benign_record(app, ep, tier, rng):
     return rec
 
 
-def _ambiguous_record(app, ep, rng):
+def _ambiguous_record(app, ep, rng, amb_idx=None):
     """Benign traffic carrying literal attack syntax in a free-text field."""
     text_params = [n for n, t in ep["params"] if t in C.TEXT_TYPES] or ep["inject"]
     target = rng.choice(text_params)
-    amb_text, core_id = V.ambiguous_value(rng)
+    if amb_idx is None:
+        amb_text, core_id = V.ambiguous_value(rng)
+    else:
+        amb_text, core_id = V.ambiguous_value(rng, idx=amb_idx)
     values = []
     for name, ftype in ep["params"]:
         values.append((name, amb_text if name == target
@@ -219,6 +254,104 @@ def _ambiguous_record(app, ep, rng):
         "template": "ambiguous", "group": core_id,
     })
     return rec
+
+
+def _greedy_partition(keys, weights, rng):
+    """Assign keys to train/val/test hitting SPLIT_FRACTIONS by *weight*.
+
+    Weighting by expected row count rather than key count matters: templates
+    are wildly uneven (xss:tag_event holds 303 payloads, ssrf:http_host_port
+    180), so partitioning by count alone leaves the structural test starved.
+    """
+    f = C.SPLIT_FRACTIONS
+    keys = sorted(keys, key=str)
+    rng.shuffle(keys)
+    total = sum(weights[k] for k in keys)
+    want = {s: f[s] * total for s in f}
+    got = {s: 0.0 for s in f}
+    out = {}
+
+    # Seed train, then test, then val before greedy filling. Without this a
+    # family holding only three templates puts all of them in train/test at a
+    # 70/10/20 target, and the family vanishes from the structural val set --
+    # which is how jndi, nosqli, ssrf and xss went missing in v3.0.0. A family
+    # with fewer templates than splits still cannot cover them all; that is an
+    # inventory limit, reported rather than papered over.
+    ordered = sorted(keys, key=lambda k: -weights[k])
+    for s, k in zip(("train", "test", "val"), ordered):
+        out[k] = s
+        got[s] += weights[k]
+    for k in ordered:
+        if k in out:
+            continue
+        s = max(("train", "val", "test"), key=lambda s: want[s] - got[s])
+        out[k] = s
+        got[s] += weights[k]
+    return out
+
+
+def _preassign(pool, rng):
+    """Decide every split membership BEFORE any row is generated.
+
+    A counterfactual pair links an attack payload to a benign core, so the two
+    cannot be split independently after the fact -- that is what left 1,236
+    groups spanning `split` in the first prototype. Union-find over pairs is not
+    an option either: 16,000 pairs over ~1,961 groups and ~2,340 cores collapse
+    into a single component.
+
+    So each unit is assigned up front to a *cell* -- a (split, split_struct)
+    pair -- and generation only ever pairs a payload with a core from the same
+    cell. Both halves then inherit the cell, and no group, template or core can
+    span either split by construction.
+
+    Payload groups and templates are partitioned per family, which also gives
+    `split_struct` the family coverage and prevalence balance it lacked in
+    v3.0.0 (nosqli and ssrf had no structural val or test rows at all).
+    """
+    per_fam = {}
+    for fam, items in pool.items():
+        for raw, tmpl in items:
+            per_fam.setdefault(fam, []).append((P.group_key(raw), tmpl, raw))
+
+    group_split, template_split = {}, {}
+    for fam in sorted(per_fam):
+        gw, tw = {}, {}
+        for g, t, _ in per_fam[fam]:
+            gw[g] = gw.get(g, 0) + 1
+            tw[t] = tw.get(t, 0) + 1
+        group_split.update(_greedy_partition(list(gw), gw, rng))
+        template_split.update(_greedy_partition(list(tw), tw, rng))
+
+    # index payloads by cell and family
+    cell_pool = {}
+    for fam in sorted(per_fam):
+        for g, t, raw in per_fam[fam]:
+            cell = (group_split[g], template_split[t])
+            cell_pool.setdefault(cell, {}).setdefault(fam, []).append((raw, t, g))
+
+    weight = {c: sum(len(v) for v in fams.values()) for c, fams in cell_pool.items()}
+    total = sum(weight.values())
+    share = {c: weight[c] / total for c in weight}
+
+    def _deal(n_units, prefix):
+        """Split a pool of ungrouped units across cells in the same proportions."""
+        cells = sorted(share, key=str)
+        out = {c: [] for c in cells}
+        idx = list(range(n_units))
+        rng.shuffle(idx)
+        i = 0
+        for c in cells:
+            k = int(round(share[c] * n_units))
+            for j in idx[i:i + k]:
+                out[c].append(j)
+            i += k
+        for j in idx[i:]:
+            out[cells[0]].append(j)
+        return out
+
+    cores_by_cell = _deal(len(V.BENIGN_CORES), "benH")
+    amb_by_cell = _deal(len(V.AMBIGUOUS_CORES), "amb")
+    return cell_pool, cores_by_cell, amb_by_cell, share
 
 
 def _paired_records(app, ep, pool, rng, pair_no):
@@ -235,10 +368,19 @@ def _paired_records(app, ep, pool, rng, pair_no):
     and cannot predict the label. It also yields a matched-pair protocol: the
     score difference within a pair is attributable to the injected span alone.
     """
-    tier = rng.choices(["routine", "hard_negative"],
-                       weights=[C.VOLUME["routine"], C.VOLUME["hard_negative"]],
-                       k=1)[0]
-    values, carrier, core_id = _benign_values(app, ep, tier, rng)
+    cell, cell_pool, core_idx = pair_no[1], pair_no[2], pair_no[3]
+    pair_no = pair_no[0]
+    split, split_struct = cell
+
+    fams = [f for f in ep["families"] if cell_pool.get(f)]
+    if not fams:
+        return None, None
+    weights = [C.FAMILY_WEIGHTS.get(f, 1.0) for f in fams]
+    fam = rng.choices(fams, weights=weights, k=1)[0]
+    raw, template, group = rng.choice(cell_pool[fam])
+
+    tier = "hard_negative" if core_idx is not None else "routine"
+    values, carrier, core_id = _benign_values(app, ep, tier, rng, core_idx=core_idx)
 
     benign = _assemble(app, ep, values, rng, extra=None)
     pair_id = f"pair-{pair_no:06d}"
@@ -247,14 +389,9 @@ def _paired_records(app, ep, pool, rng, pair_no):
         "tier": tier, "evasion": "none", "placement": "",
         "template": f"benign:{tier}",
         "group": core_id or f"benR-{rng.getrandbits(48):x}",
-        "pair_id": pair_id,
+        "pair_id": pair_id, "split": split, "split_struct": split_struct,
     })
 
-    fams = [f for f in ep["families"] if pool.get(f)]
-    weights = [C.FAMILY_WEIGHTS.get(f, 1.0) for f in fams]
-    fam = rng.choices(fams, weights=weights, k=1)[0]
-    raw, template = rng.choice(pool[fam])
-    group = P.group_key(raw)
     if rng.random() < C.EVASION_RATE:
         payload, evasion = P.apply_evasion(raw, fam, rng, C.EVASION_CHAIN_RATE)
     else:
@@ -283,7 +420,7 @@ def _paired_records(app, ep, pool, rng, pair_no):
         "label": 1, "attack_type": fam, "family": fam, "tier": "attack",
         "evasion": evasion, "placement": "body" if in_body else "query",
         "template": template, "group": group, "payload_slot": target,
-        "pair_id": pair_id,
+        "pair_id": pair_id, "split": split, "split_struct": split_struct,
     })
     return benign, attack
 
@@ -389,21 +526,73 @@ def synthesise(pool, volume, rng):
             recs.append(gen(app, ep))
 
     if PAIRED:
-        # v4: every attack is the counterfactual twin of a benign row. The twins
-        # count against the benign budget, so total volume is unchanged.
+        # v4: every attack is the counterfactual twin of a benign row, and every
+        # split membership was decided before generation, so no group, template
+        # or benign core can span a split. Twins count against the benign
+        # budget, so total volume is unchanged.
+        cell_pool, cores_by_cell, amb_by_cell, share = _preassign(pool, rng)
+        cells = sorted(share, key=str)
+        cell_w = [share[c] for c in cells]
+
         made = {"routine": 0, "hard_negative": 0}
-        for i in range(volume["attack"]):
+        hard_target = volume["hard_negative"] / (volume["routine"]
+                                                 + volume["hard_negative"])
+        cursor = {c: 0 for c in cells}
+
+        def take_core(cell):
+            """Next pre-assigned core for this cell, cycling if exhausted."""
+            bucket = cores_by_cell[cell]
+            if not bucket:
+                return None
+            i = bucket[cursor[cell] % len(bucket)]
+            cursor[cell] += 1
+            return i
+
+        i = 0
+        while i < volume["attack"]:
+            cell = rng.choices(cells, weights=cell_w, k=1)[0]
+            if not cell_pool.get(cell):
+                continue
             app, ep = rng.choice(inject_eps)
-            b, a = _paired_records(app, ep, pool, rng, i)
+            core_idx = take_core(cell) if rng.random() < hard_target else None
+            b, a = _paired_records(app, ep, pool, rng,
+                                   (i, cell, cell_pool[cell], core_idx))
+            if b is None:
+                continue
             made[b["tier"]] += 1
             recs.append(b)
             recs.append(a)
-        spread(max(0, volume["routine"] - made["routine"]),
-               lambda a, e: _benign_record(a, e, "routine", rng), endpoints)
-        spread(max(0, volume["hard_negative"] - made["hard_negative"]),
-               lambda a, e: _benign_record(a, e, "hard_negative", rng), endpoints)
-        spread(volume["ambiguous"],
-               lambda a, e: _ambiguous_record(a, e, rng), inject_eps)
+            i += 1
+
+        # Unpaired benign rows: routine rows are ungrouped so they take a cell
+        # by the same proportions; hard negatives and ambiguous rows follow the
+        # cell their pre-assigned core already belongs to.
+        for _ in range(max(0, volume["routine"] - made["routine"])):
+            app, ep = rng.choice(endpoints)
+            cell = rng.choices(cells, weights=cell_w, k=1)[0]
+            r = _benign_record(app, ep, "routine", rng)
+            r["split"], r["split_struct"] = cell
+            recs.append(r)
+        for _ in range(max(0, volume["hard_negative"] - made["hard_negative"])):
+            app, ep = rng.choice(endpoints)
+            cell = rng.choices(cells, weights=cell_w, k=1)[0]
+            r = _benign_record(app, ep, "hard_negative", rng,
+                               core_idx=take_core(cell))
+            r["split"], r["split_struct"] = cell
+            recs.append(r)
+        amb_cursor = {c: 0 for c in cells}
+        for _ in range(volume["ambiguous"]):
+            app, ep = rng.choice(inject_eps)
+            cell = rng.choices(cells, weights=cell_w, k=1)[0]
+            bucket = amb_by_cell[cell]
+            if not bucket:
+                cell = cells[0]
+                bucket = amb_by_cell[cell]
+            idx = bucket[amb_cursor[cell] % len(bucket)]
+            amb_cursor[cell] += 1
+            r = _ambiguous_record(app, ep, rng, amb_idx=idx)
+            r["split"], r["split_struct"] = cell
+            recs.append(r)
     else:
         spread(volume["routine"],
                lambda a, e: _benign_record(a, e, "routine", rng), endpoints)
@@ -532,21 +721,22 @@ def finalize(recs, seed):
     recs = uniq
 
     if PAIRED:
-        # Prototype pair atomicity: the attack half owns the pair's split, and
-        # its benign twin follows. This keeps every pair intact, at the cost of
-        # letting a benign core span splits -- which the released contract
-        # forbids. Doing it properly needs constrained generation (pre-assign
-        # payload groups AND cores to splits, then pair only within a split);
-        # until then a PAIRED build is a measurement artefact, not a release.
-        for r in recs:
-            if r.get("pair_id") and r["label"] == 1:
-                _PAIR_GROUP[r["pair_id"]] = r["group"]
+        # Dedup works per row, so it can drop one half of a pair and leave the
+        # other as an unmatched orphan. A half-pair is worse than no pair: it
+        # reintroduces exactly the asymmetry pairing exists to remove. Drop both.
+        seen_pairs = {}
         for r in recs:
             pid = r.get("pair_id")
-            if pid and r["label"] == 0 and pid in _PAIR_GROUP:
-                r["group"] = _PAIR_GROUP[pid]
-    _assign_split(recs, rng, key="group", col="split")
-    _assign_split(recs, rng, key=_struct_key, col="split_struct")
+            if pid:
+                seen_pairs[pid] = seen_pairs.get(pid, 0) + 1
+        before = len(recs)
+        recs = [r for r in recs
+                if not r.get("pair_id") or seen_pairs[r["pair_id"]] == 2]
+        dropped += before - len(recs)
+
+    if not PAIRED:
+        _assign_split(recs, rng, key="group", col="split")
+        _assign_split(recs, rng, key=_struct_key, col="split_struct")
     _assign_sessions(recs, rng)
     return recs, dropped
 
@@ -611,6 +801,44 @@ def _assign_sessions(recs, rng):
         by_split.setdefault(r["split"], []).append(r)
     sess_no = 0
     for split, rows in sorted(by_split.items()):
+        if PAIRED:
+            # Bursty sessions. v3 chunked rows at random, so the per-session
+            # attack rate varied exactly as an i.i.d. binomial would (measured
+            # ratio 0.989) and no sequence model could beat a per-request one --
+            # while the datasheet advertised sequence modelling. Here a minority
+            # of sessions are attacker sessions with a high within-session rate
+            # and the rest are mostly benign. `session_leak` constrains the MEAN
+            # of the per-session rates, not the variance, so this keeps that
+            # check satisfied while giving the column real signal.
+            atk = [r for r in rows if r["label"] == 1]
+            ben = [r for r in rows if r["label"] == 0]
+            rng.shuffle(atk)
+            rng.shuffle(ben)
+            p = len(atk) / max(1, len(rows))
+            q = min(0.9, max(0.05, (p - SESS_LO) / (SESS_HI - SESS_LO)))
+            ai = bi = 0
+            while ai < len(atk) or bi < len(ben):
+                n = rng.randint(lo, hi)
+                rate = SESS_HI if rng.random() < q else SESS_LO
+                want_a = min(len(atk) - ai, int(round(n * rate)))
+                want_b = min(len(ben) - bi, n - want_a)
+                if want_a + want_b == 0:
+                    # One pool is exhausted and this session's rate asked for
+                    # none of the other. Take whatever is left rather than
+                    # breaking, which previously stranded 411 rows with no
+                    # session id at all -- and an empty id spans every split.
+                    want_a = min(len(atk) - ai, n)
+                    want_b = min(len(ben) - bi, n - want_a)
+                    if want_a + want_b == 0:
+                        break
+                chunk = atk[ai:ai + want_a] + ben[bi:bi + want_b]
+                ai += want_a
+                bi += want_b
+                sid = f"s{split[0]}-{sess_no:06d}"
+                for r in chunk:
+                    r["session"] = sid
+                sess_no += 1
+            continue
         idx = list(range(len(rows)))
         rng.shuffle(idx)
         i = 0

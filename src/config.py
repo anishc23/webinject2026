@@ -18,7 +18,7 @@ Four invariants live here, each closing a leak that a previous version shipped.
      `Content-Type` (which the detector inspects) cannot become a label proxy.
 """
 
-VERSION = "3.0.0"
+VERSION = "4.0.0"
 SEED = 42
 
 # ---------------------------------------------------------------- volumes ----

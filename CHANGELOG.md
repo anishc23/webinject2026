@@ -1,5 +1,90 @@
 # Changelog
 
+## 4.0.0 - counterfactual pairing, pre-assigned splits, bursty sessions
+
+An external audit of v3.0.0 found four properties the 25-check gate did not
+test. All four reproduced. This release fixes them by construction and makes the
+checks blocking in CI. Schema gains `pair_id`; distribution and splits changed,
+so results are **not** comparable to a v3.0.0 run.
+
+### Fixed (measured leaks v3.0.0 shipped)
+- **Lexical register leak.** Delete every non-alphabetic character, then delete
+  every word occurring in the seed payload pool, and v3.0.0's label was still
+  recoverable from the ordinary words left behind at **AUC 0.904** (0.990 for
+  attack versus the `hard_negative` tier). The cause was construction: attacks
+  were synthesised independently and given routine-tier filler, while hard
+  negatives carried prose cores, so carrier register encoded the tier and the
+  tier encoded the label. `char_class` and `hard_neg` both passed, because
+  neither looks at token-to-label association. This is the same *shape* of
+  defect as the v2.1 header leak: a character-class shortcut was removed and a
+  lexical one took its place.
+
+  v4 builds every attack as the **counterfactual twin** of a benign row drawn
+  from the same tier mixture -- same endpoint, same carrier values, same
+  headers, same multipart boundary -- with the payload *appended* into one
+  declared injection slot and nothing else changed. Both halves share a
+  `pair_id`. Carrier-only AUC falls to **0.539**.
+
+  Appending rather than substituting is what did it: substituting removes the
+  target slot's prose, so attacks carry systematically less benign vocabulary
+  than their own twins, which measured 0.840 on its own. Appending is also how
+  real injections arrive (`?q=shoes' OR 1=1--`).
+- **`split_struct` was neither family-complete nor prevalence-matched.**
+  `split_balance` inspects `split` only. In v3.0.0 `nosqli` and `ssrf` had no
+  rows in the structural val *or* test sets, six families had no val rows, and
+  attack prevalence ran 28.6/21.2/15.3 percent (spread 0.134). The structural
+  gap was therefore measured under a different family mix. v4 pre-assigns every
+  payload group, template and benign core to a (split, split_struct) cell before
+  generation and pairs only within a cell, seeding train/test/val in that order
+  so thin families still cover the splits their inventory allows. Spread is now
+  0.007, every family is in structural train and test, and only `ssrf` (2
+  templates) cannot reach val -- an inventory limit, reported by the check.
+- **`session` carried no sequential signal.** Per-session attack-rate variance
+  was 0.989x the i.i.d. binomial expectation, so no sequence model could beat a
+  per-request model on a column the datasheet advertised for sequence
+  modelling. v4 gives a minority of sessions a high within-session attack rate;
+  the ratio is now **2.87**. `session_leak` constrains the mean of per-session
+  rates, not the variance, so both hold.
+- **Cross-corpus transfer was reported with a collapsing metric.** F1 ~41
+  against CSIC-2010 is exactly what an all-positive classifier scores at that
+  base rate, and recall was ~100% with precision equal to the base rate.
+  `baselines.json` now carries `roc_auc` and `pred_pos_rate` for every
+  cross-dataset pair. Threshold-free, transfer is **AUC 0.61** against
+  CSIC-2010 and **0.77** against ECML/PKDD.
+- **`capture()` sent only `form` bodies**, so 37% of rows replayed bodyless
+  while `Content-Type` advertised a payload. Bodies now go out verbatim per
+  content type.
+
+### Changed
+- **The task is harder, and that is the result.** Same reference model, same
+  protocol, v3.0.0 -> v4.0.0:
+
+  | Metric (payload-disjoint) | v3.0.0 | v4.0.0 |
+  |---|--:|--:|
+  | char n-gram F1 | 95.6 | 91.0 |
+  | char n-gram TPR@0.1%FPR | 87.1 | 85.7 |
+  | **word n-gram F1** | **82.1** | **29.9** |
+  | length-only F1 | 0.4 | 0.0 |
+  | structural TPR@0.1%FPR | 77.2 | 52.6 |
+  | carrier-only AUC (register) | 0.904 | 0.539 |
+
+  The word n-gram collapse is the clearest single piece of evidence: a
+  word-level model scored 82.1 F1 on v3.0.0 because carrier register was
+  informative. With the register gone it scores 29.9. The structural gap widens
+  from 9.8 to 33.1 points, because template shape is now the signal that is
+  actually being held out.
+- **Honesty ladder** (char n-gram TPR@0.1%FPR): random 90.0 -> payload-disjoint
+  85.7 -> template-disjoint 52.6.
+- Zero-shot LOFO recall now spans 6.9% (prototype pollution) to 80.8% (CRLF).
+- Supported Python floor stays 3.11; CI matrix 3.11 / 3.12.
+
+### Added
+- **`src/audit_gaps.py` is a blocking CI step**, so the gate is effectively 29
+  checks. It shipped failing 0/4 against v3.0.0 and passes 4/4 here.
+- **`pair_id`** column, and a matched-pair structure the evaluation can exploit:
+  within a pair the only difference is the injected span, so a score difference
+  is attributable to it.
+
 ## Unreleased — release-integrity fix
 
 No corpus change: `data/webinject2026.csv` and every other released file is

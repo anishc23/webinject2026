@@ -1,4 +1,4 @@
-# Datasheet — WebInject2026 v3.0.0
+# Datasheet — WebInject2026 v4.0.0
 
 Following Gebru et al., *Datasheets for Datasets* (2021). This document is the
 authoritative description of what the corpus is, how it was made, and where it
@@ -26,9 +26,9 @@ not memorising payload strings or exploiting an artefact of generation.
 ## Composition
 
 **What does each instance represent?**
-One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack.
+One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack. Every attack row is the counterfactual twin of a benign row (shared `pair_id`).
 
-**Schema (22 columns).**
+**Schema (23 columns).**
 
 | Column | Description |
 |---|---|
@@ -53,21 +53,19 @@ One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack.
 | `split` | `train`/`val`/`test` — **payload-disjoint, family/tier-stratified** (primary) |
 | `split_struct` | `train`/`val`/`test` — **template-disjoint** (structural generalisation) |
 | `template` | Attack template the payload was generated from (`sqli:union`, …); `benign:*` / `ambiguous` for benign |
+| `pair_id` | Counterfactual pair id. Each attack row and its benign twin share one: same endpoint, carrier values, headers and boundary, differing only by the injected span. Empty for unpaired benign rows |
 | `group` | Split group; `split` never shares one. Attack = canonical-payload hash; ambiguous = `ambigD`/`ambigV` (frame × specimen) core; hard_negative = `benH` core; routine = per-row |
 
 **Class / family distribution.**
 
 - Benign 45,400 = routine 26,000 + hard_negative 17,000 + ambiguous 2,400
-  (verbatim 827 + discussion 1,573, in 823 cores). Hard negatives draw from
-  2,340 groupable, split-disjoint cores.
-- Attack 16,000 across: xss 3,601 · sqli 3,571 · ssti 1,527 · nosqli 1,264 ·
-  jndi 981 · traversal 917 · ssrf 811 · deser 781 · cmdi 734 · protopollute 675 ·
-  ldapi 478 · xxe 251 · smuggle 245 · crlf 164.
-- Distinct attack payloads: 1,961 groups (393 held out in the test split, ≥11
-  per family), across 84 templates (26 held out in the structural test).
-  Placement: query 8,673 · body 6,840 · header 487. Content type: query 31,644 ·
-  json 15,607 · form 7,107 · multipart 5,234 · graphql 1,808. Evasion applied to
-  5,538 (835 chained). ~8,200 sessions.
+  (in 884 cores). Hard negatives draw from 2,344 groupable,
+  split-disjoint cores.
+- Attack 16,000 across: xss 3,636 · sqli 3,546 · ssti 1,580 · nosqli 1,257 · jndi 1,009 · traversal 868 · ssrf 787 · cmdi 769 · deser 751 · protopollute 650 · ldapi 483 · smuggle 269 · xxe 250 · crlf 145.
+- Distinct attack payloads: 1,942 groups (386 held out in the test split,
+  >=10 per family), across 84 templates (24 held out in the structural test).
+  Placement: body 6,867 · query 9,133. Content type: query 31,551 · json 15,722 · multipart 5,295 · form 7,095 · graphql 1,737.
+  Evasion applied to 5,617 (885 chained). 8,236 sessions.
 
 **Is anything missing?**
 Header capture is limited to a fixed set of common headers. Server responses,
@@ -128,7 +126,7 @@ plus a deterministic per-family **grammar** (`payloads._generate`) that
 enumerates template slots — comment terminators, sleep durations, target files,
 event handlers, JNDI schemes, prototype keys, smuggling headers — in fixed order.
 Every generated payload carries a `template` name (e.g. `sqli:union`); the pool
-holds 1,961 distinct canonical payloads across 84 templates (no RNG, so the build
+holds 1,942 distinct canonical payloads across 84 templates (no RNG, so the build
 is reproducible). Payloads are deduplicated **globally across families** so no
 string that is plausible for two families (e.g. `file:///etc/passwd`) can appear
 in both train and test. The pool is optionally widened by PayloadsAllTheThings
@@ -235,38 +233,38 @@ the raw `path`/`query`/`body`/`headers`).
   released corpus was built *without* it (1,979 payloads); a rebuild with
   `data/patt/` present draws from a larger pool and will not reproduce the
   published CSV byte-for-byte.
-- **Four known gaps the gate does not yet enforce.** Found by an external audit
-  of v3.0.0 and independently reproduced; `python -m src.audit_gaps` runs them
-  and currently returns 0/4. They are targeted for the next rebuild.
-  - **Lexical register leak (the serious one).** Delete every character that is
-    not a letter, then delete every word occurring in the seed payload pool, and
-    the label is still recoverable from the ordinary words left behind:
-    **AUC 0.904** on the payload-disjoint test, and **0.990** for attack versus
-    the `hard_negative` tier alone. (Those figures use only vocabulary occurring
-    in both classes in training, so they cannot be explained by residue from
-    encoding evasions; the unrestricted numbers are 0.927 and 0.998.) The cause
-    is construction: attack rows are generated independently and receive
-    routine-tier filler, while hard negatives carry prose cores, so carrier
-    register encodes tier and tier encodes label. This is the same *shape* of
-    defect as the v2.1 header leak — a character-class shortcut was removed and
-    a lexical-register shortcut took its place. `char_class` and `hard_neg` both
-    pass, because neither looks at token-to-label association.
-  - **`split_struct` is not balanced.** See the note under the quality gate in
-    the README: template-disjoint but not family-complete or prevalence-matched.
-    The 87.1 -> 77.2 structural gap is therefore measured under a different
-    family mix and is not a like-for-like comparison.
-  - **`session` carries no sequential signal.** Per-session attack-rate variance
-    is 0.989x the i.i.d. binomial expectation (an i.i.d. resample of the same
-    session sizes gives 0.997x), so attacks are independent within sessions and
-    no sequence model can beat a per-request model. `session_leak` passes
-    *because* label-independence was enforced, which is what removes the signal.
-    Treat "sequence/behavioural modelling" below as aspirational, not supported.
-  - **Cross-corpus transfer is reported with a collapsing metric.** The F1 of
-    ~41/46 is threshold collapse, not graded degradation: recall is ~100% and
-    precision equals the base rate, i.e. the model predicts attack on nearly
-    every row. An all-positive classifier scores exactly 41.0 at CSIC's base
-    rate. Threshold-free, transfer is AUC 0.53 against CSIC-2010 (near-chance
-    ranking) and 0.72 against ECML/PKDD. Quote those, not the F1.
+- **Closed in v4.0.0, and now enforced.** An external audit of v3.0.0 found four
+  properties the 25-check gate did not test; all four reproduced. They are fixed
+  by construction and `python -m src.audit_gaps` is a blocking CI step, so the
+  gate is effectively 29 checks. What was wrong, and what it is now:
+  - **Lexical register leak.** With all punctuation and every payload-pool word
+    deleted, v3.0.0's label was recoverable from ordinary vocabulary at AUC
+    0.904 (0.990 against the `hard_negative` tier). Attacks were generated
+    independently with routine-tier filler while hard negatives carried prose
+    cores, so carrier register encoded the tier and the tier encoded the label.
+    v4 builds each attack as the counterfactual twin of a benign row; carrier
+    AUC is now **0.539**. The residual 0.818 against `hard_negative` alone is
+    tier composition, not label signal: the two benign tiers are separable from
+    each other at AUC 1.000 with no label involved, and attacks are a mixture of
+    both carrier types.
+  - **`split_struct` imbalance.** `nosqli` and `ssrf` had no structural val or
+    test rows and prevalence spread was 0.134. Splits are now decided before
+    generation; spread is 0.007 and every family is in structural train and
+    test. `ssrf` holds only 2 templates so it cannot also reach val -- an
+    inventory limit of the payload grammar, reported by the check rather than
+    hidden. Expanding templates for the thin families (`ssrf` 2, `crlf`/`jndi`/
+    `nosqli` 3) is the next improvement to the structural protocol.
+  - **`session` had no sequential signal** (variance 0.989x i.i.d.). Sessions
+    are now bursty; the ratio is **2.87**.
+  - **Cross-corpus transfer read as graded degradation when it was threshold
+    collapse.** `baselines.json` now reports `roc_auc` and `pred_pos_rate`
+    alongside F1. Threshold-free, transfer is AUC 0.61 against CSIC-2010 and
+    0.77 against ECML/PKDD, with the model firing on 100% of rows at threshold
+    0.5. Quote the AUC, not the F1.
+- **The corpus is harder than v3.0.0, deliberately.** Char n-gram F1 falls 95.6
+  -> 91.0 and the structural gap widens from 9.8 to 33.1 points. The word n-gram
+  baseline falls from F1 82.1 to 29.9, which is the clearest evidence the
+  register shortcut is gone: a word-level model had been reading carrier prose.
 - **25 rows contain raw NUL bytes** in `body` and `payload_raw` (20 traversal,
   5 cmdi; 12 train / 10 test / 3 val). This is faithful — null-byte injection
   truncates strings in the C layer beneath PHP and Java, so the byte has to

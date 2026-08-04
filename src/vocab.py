@@ -795,14 +795,14 @@ AMBIGUOUS_CORES = [
 ]
 
 
-def ambiguous_value(rng: random.Random):
+def ambiguous_value(rng: random.Random, idx=None):
     """Return (text, core_id): benign-in-context text with literal attack syntax.
 
     The id is prefixed `ambigV`/`ambigD` so the verbatim (irreducible) and
     discussion (headroom) kinds can be told apart from the shipped `group`
     column with no extra schema.
     """
-    fi, si = rng.choice(AMBIGUOUS_CORES)
+    fi, si = AMBIGUOUS_CORES[idx] if idx is not None else rng.choice(AMBIGUOUS_CORES)
     text = AMBIGUOUS_FRAMES[fi].format(x=AMBIGUOUS_SPECIMENS[si])
     kind = "D" if fi < _N_DISCUSSION else "V"
     return text, f"ambig{kind}-{fi:02d}-{si:02d}"

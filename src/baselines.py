@@ -41,7 +41,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (accuracy_score, average_precision_score, f1_score,
-                             precision_score, recall_score, roc_curve)
+                             precision_score, recall_score, roc_auc_score,
+                             roc_curve)
 from sklearn.model_selection import train_test_split
 from sklearn.tree import DecisionTreeClassifier
 
@@ -69,6 +70,13 @@ def _metrics(y, pred, score):
         "recall": float(recall_score(y, pred, zero_division=0)),
         "f1": float(f1_score(y, pred, zero_division=0)),
         "pr_auc": float(average_precision_score(y, score)) if len(set(y)) > 1 else 0.0,
+        # roc_auc and pred_pos_rate exist so cross-corpus transfer cannot be
+        # read as graded degradation when it is threshold collapse. F1 ~41
+        # against CSIC-2010 is exactly what an all-positive classifier scores at
+        # that base rate; pred_pos_rate makes that visible and roc_auc is the
+        # threshold-free number to quote instead.
+        "roc_auc": float(roc_auc_score(y, score)) if len(set(y)) > 1 else 0.0,
+        "pred_pos_rate": float(np.mean(np.asarray(pred) == 1)),
         "tpr_at_1pct_fpr": _tpr_at_fpr(y, score, 0.01),
         "tpr_at_0.1pct_fpr": _tpr_at_fpr(y, score, 0.001),
     }
