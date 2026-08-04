@@ -49,6 +49,10 @@ DATA = os.path.join(ROOT, "data")
 CORPUS = os.path.join(ROOT, "corpus")
 PATT_ROOT = os.path.join(DATA, "patt")
 
+# v4 prototype: build every attack as the counterfactual twin of a benign row.
+# Off by default so `main` keeps producing the published v3.0.0 corpus.
+PAIRED = os.environ.get("WEBINJECT_PAIRED", "0") == "1"
+
 
 # ------------------------------------------------------- record synthesis ---
 def _query_string(params):
@@ -89,16 +93,21 @@ def _multipart_body(params, boundary):
     return "\r\n".join(lines)
 
 
-def _encode_body(ep, params, rng):
-    """Return (body_string, content_type_label, boundary)."""
+def _encode_body(ep, params, rng, boundary=None):
+    """Return (body_string, content_type_label, boundary).
+
+    `boundary` is supplied when re-encoding the twin of an already-built record,
+    so both halves of a counterfactual pair carry the same multipart boundary and
+    therefore the same Content-Type header.
+    """
     ct = C.content_type(ep)
     if ct == "json":
         return _json_body(params), "json", None
     if ct == "graphql":
         return _graphql_body(params), "graphql", None
     if ct == "multipart":
-        b = "----WebKitFormBoundary" + "".join(
-            rng.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=16))
+        b = boundary or ("----WebKitFormBoundary" + "".join(
+            rng.choices("abcdefghijklmnopqrstuvwxyz0123456789", k=16)))
         return _multipart_body(params, b), "multipart", b
     return _query_string(params), "form", None
 
@@ -112,20 +121,55 @@ def _split_qb(ep, params):
     return query, body
 
 
-def _assemble(app, ep, values, rng, extra):
-    """Build the transport-level fields shared by every record kind."""
+def _assemble(app, ep, values, rng, extra, reuse=None):
+    """Build the transport-level fields shared by every record kind.
+
+    `reuse` is the envelope of an already-built record, as returned in the
+    "_envelope" key. Passing it makes this record transport-identical to that
+    one -- same headers, same multipart boundary -- so the only difference
+    between the two is the parameter value that was substituted. That is what
+    makes a counterfactual pair counterfactual.
+    """
     query, body = _split_qb(ep, values)
     body_str, ct_label, boundary = ("", "query", None)
     if body:
-        body_str, ct_label, boundary = _encode_body(ep, body, rng)
+        body_str, ct_label, boundary = _encode_body(
+            ep, body, rng, boundary=(reuse or {}).get("boundary"))
+    hdrs = (reuse or {}).get("headers") or _headers(app, ep, rng, extra, boundary)
     rec = {
         "app": app, "method": ep["method"], "path": ep["path"],
         "query": _query_string(query), "body": body_str,
         "content_type": ct_label,
-        "headers": _hdr_json(_headers(app, ep, rng, extra, boundary)),
+        "headers": _hdr_json(hdrs),
         "source": "synthetic", "status": "",
+        "_envelope": {"headers": hdrs, "boundary": boundary},
     }
     return rec
+
+
+def _benign_values(app, ep, tier, rng):
+    """The parameter values of one benign request, before assembly.
+
+    Split out of `_benign_record` so a counterfactual attack twin can be built
+    from exactly the same carrier values (see `_paired_records`). In v3 the
+    attack side called `V.value_for` directly and never received a core, which
+    made the ~2,340 prose cores benign-exclusive and the label recoverable from
+    carrier vocabulary alone. Sharing this function is what closes that.
+    """
+    carrier = None
+    core_id = None
+    if tier == "hard_negative":
+        text_params = [n for n, t in ep["params"] if t in C.TEXT_TYPES]
+        carrier = rng.choice(text_params)
+        core_text, core_id = V.core_value(rng)
+
+    values = []
+    for name, ftype in ep["params"]:
+        if name == carrier:
+            values.append((name, core_text))
+        else:
+            values.append((name, V.value_for(ftype, rng, tier)))
+    return values, carrier, core_id
 
 
 def _benign_record(app, ep, tier, rng):
@@ -175,6 +219,73 @@ def _ambiguous_record(app, ep, rng):
         "template": "ambiguous", "group": core_id,
     })
     return rec
+
+
+def _paired_records(app, ep, pool, rng, pair_no):
+    """A counterfactual pair: one benign row and its attack twin.
+
+    The two rows are identical in every respect -- endpoint, method, every
+    carrier value, headers, multipart boundary -- except that in the attack row
+    a single declared injection slot holds a payload instead of its benign
+    value. Both carry the same `pair_id`.
+
+    This is the construction fix for the lexical register leak. Because the
+    attack row inherits its carrier text from a benign row drawn from the same
+    tier mixture, carrier vocabulary is identically distributed across labels
+    and cannot predict the label. It also yields a matched-pair protocol: the
+    score difference within a pair is attributable to the injected span alone.
+    """
+    tier = rng.choices(["routine", "hard_negative"],
+                       weights=[C.VOLUME["routine"], C.VOLUME["hard_negative"]],
+                       k=1)[0]
+    values, carrier, core_id = _benign_values(app, ep, tier, rng)
+
+    benign = _assemble(app, ep, values, rng, extra=None)
+    pair_id = f"pair-{pair_no:06d}"
+    benign.update({
+        "label": 0, "attack_type": "benign", "family": "benign",
+        "tier": tier, "evasion": "none", "placement": "",
+        "template": f"benign:{tier}",
+        "group": core_id or f"benR-{rng.getrandbits(48):x}",
+        "pair_id": pair_id,
+    })
+
+    fams = [f for f in ep["families"] if pool.get(f)]
+    weights = [C.FAMILY_WEIGHTS.get(f, 1.0) for f in fams]
+    fam = rng.choices(fams, weights=weights, k=1)[0]
+    raw, template = rng.choice(pool[fam])
+    group = P.group_key(raw)
+    if rng.random() < C.EVASION_RATE:
+        payload, evasion = P.apply_evasion(raw, fam, rng, C.EVASION_CHAIN_RATE)
+    else:
+        payload, evasion = raw, "none"
+
+    target = rng.choice(ep["inject"])
+    body_names = set(ep.get("body", []))
+    in_body = target in body_names and rng.random() < 0.9
+
+    # Append the payload to the target slot rather than replacing its value.
+    # Replacing it removes that slot's benign prose from the attack row, so
+    # attacks end up with systematically less carrier vocabulary than their own
+    # twins -- a residual register signal measured at AUC 0.840. Appending keeps
+    # the carrier identical and makes the injected span the only difference,
+    # which is also how real injections arrive (?q=shoes' OR 1=1--).
+    def _inject(v):
+        v = str(v)
+        if not v:
+            return payload
+        return f"{payload}{v}" if rng.random() < 0.15 else f"{v}{payload}"
+
+    atk_values = [(n, _inject(v) if n == target else v) for n, v in values]
+    attack = _assemble(app, ep, atk_values, rng, extra=None,
+                       reuse=benign["_envelope"])
+    attack.update({
+        "label": 1, "attack_type": fam, "family": fam, "tier": "attack",
+        "evasion": evasion, "placement": "body" if in_body else "query",
+        "template": template, "group": group, "payload_slot": target,
+        "pair_id": pair_id,
+    })
+    return benign, attack
 
 
 def _attack_record(app, ep, pool, rng):
@@ -277,14 +388,31 @@ def synthesise(pool, volume, rng):
             app, ep = rng.choice(pick_from)
             recs.append(gen(app, ep))
 
-    spread(volume["routine"],
-           lambda a, e: _benign_record(a, e, "routine", rng), endpoints)
-    spread(volume["hard_negative"],
-           lambda a, e: _benign_record(a, e, "hard_negative", rng), endpoints)
-    spread(volume["ambiguous"],
-           lambda a, e: _ambiguous_record(a, e, rng), inject_eps)
-    spread(volume["attack"],
-           lambda a, e: _attack_record(a, e, pool, rng), inject_eps)
+    if PAIRED:
+        # v4: every attack is the counterfactual twin of a benign row. The twins
+        # count against the benign budget, so total volume is unchanged.
+        made = {"routine": 0, "hard_negative": 0}
+        for i in range(volume["attack"]):
+            app, ep = rng.choice(inject_eps)
+            b, a = _paired_records(app, ep, pool, rng, i)
+            made[b["tier"]] += 1
+            recs.append(b)
+            recs.append(a)
+        spread(max(0, volume["routine"] - made["routine"]),
+               lambda a, e: _benign_record(a, e, "routine", rng), endpoints)
+        spread(max(0, volume["hard_negative"] - made["hard_negative"]),
+               lambda a, e: _benign_record(a, e, "hard_negative", rng), endpoints)
+        spread(volume["ambiguous"],
+               lambda a, e: _ambiguous_record(a, e, rng), inject_eps)
+    else:
+        spread(volume["routine"],
+               lambda a, e: _benign_record(a, e, "routine", rng), endpoints)
+        spread(volume["hard_negative"],
+               lambda a, e: _benign_record(a, e, "hard_negative", rng), endpoints)
+        spread(volume["ambiguous"],
+               lambda a, e: _ambiguous_record(a, e, rng), inject_eps)
+        spread(volume["attack"],
+               lambda a, e: _attack_record(a, e, pool, rng), inject_eps)
 
     rng.shuffle(recs)
     return recs
@@ -381,6 +509,9 @@ def normalise(rec):
     return re.sub(r"\s+", " ", text).strip()
 
 
+_PAIR_GROUP = {}
+
+
 def finalize(recs, seed):
     rng = random.Random(seed)
     for r in recs:
@@ -400,6 +531,20 @@ def finalize(recs, seed):
     dropped = len(recs) - len(uniq)
     recs = uniq
 
+    if PAIRED:
+        # Prototype pair atomicity: the attack half owns the pair's split, and
+        # its benign twin follows. This keeps every pair intact, at the cost of
+        # letting a benign core span splits -- which the released contract
+        # forbids. Doing it properly needs constrained generation (pre-assign
+        # payload groups AND cores to splits, then pair only within a split);
+        # until then a PAIRED build is a measurement artefact, not a release.
+        for r in recs:
+            if r.get("pair_id") and r["label"] == 1:
+                _PAIR_GROUP[r["pair_id"]] = r["group"]
+        for r in recs:
+            pid = r.get("pair_id")
+            if pid and r["label"] == 0 and pid in _PAIR_GROUP:
+                r["group"] = _PAIR_GROUP[pid]
     _assign_split(recs, rng, key="group", col="split")
     _assign_split(recs, rng, key=_struct_key, col="split_struct")
     _assign_sessions(recs, rng)
@@ -482,7 +627,7 @@ def _assign_sessions(recs, rng):
 COLUMNS = ["app", "method", "path", "query", "body", "content_type", "headers",
            "payload", "payload_raw", "label", "attack_type", "family",
            "placement", "tier", "evasion", "source", "status", "session",
-           "split", "split_struct", "template", "group"]
+           "split", "split_struct", "template", "group", "pair_id"]
 
 
 def write_csv(recs, path):
