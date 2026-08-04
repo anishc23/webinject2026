@@ -36,6 +36,31 @@ byte-identical to 3.0.0, and `src/config.VERSION` is unchanged.
   a local PayloadsAllTheThings checkout will not reproduce the published CSV.
 
 ### Added
+- **`src/audit_gaps.py`** — four properties the 25-check gate does not enforce,
+  written as gate-style checks and shipped *failing* (0/4 on v3.0.0). Found by
+  an external audit and independently reproduced. The headline one is a
+  **lexical register leak**: with all punctuation and all payload-pool words
+  deleted, the label is still recoverable from ordinary vocabulary at AUC 0.904
+  overall and 0.990 against the `hard_negative` tier. The others are
+  `split_struct` imbalance, a `session` column with no within-session
+  correlation, and cross-corpus transfer reported via a collapsing F1 (recall
+  ~100%, precision = base rate; threshold-free AUC is 0.53 against CSIC-2010).
+  Full write-up in DATASHEET.md > Limitations.
+
+### Fixed
+- **`capture()` sent only `form` bodies.** `json`, `graphql` and `multipart`
+  rows — 22,649 rows, 37% of the corpus, including 5,272 attacks whose payload
+  sits in the body — were replayed with no body at all while the `Content-Type`
+  header still advertised one, so the recorded `status` described a different
+  request than the row it was stored on. Bodies are now sent verbatim per
+  content type, preserving the multipart boundary the headers declare. Affects
+  the opt-in `--capture` path only; the released corpus is offline-synthesised
+  and unchanged.
+- **README overstated `split_balance`.** It implied family coverage and
+  prevalence matching held for both splits; the check inspects `split` only.
+  The bullet now states the scope and gives the `split_struct` figures.
+
+### Added
 - **CI matrix over Python 3.11 / 3.12**, spanning the PEP 701 boundary.
   A single-version matrix is what let the f-strings above ship.
 - **`src/checksums.py`** owns the manifest. `python -m src.checksums` rewrites it;

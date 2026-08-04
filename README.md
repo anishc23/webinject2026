@@ -59,6 +59,7 @@ python -m src.validate       # 25-check quality gate; non-zero exit on any FAIL
 python -m src.baselines      # reference results table
 python -m src.evaluate       # generalisation protocols + prevalence correction
 python -m src.figures        # the eight paper figures, from the shipped result JSONs
+python -m src.audit_gaps     # four known, documented gaps; currently 0/4 (see DATASHEET)
 pytest -q                    # assert the shipped CSV passes every gate
 ```
 
@@ -116,8 +117,13 @@ baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
   ssrf 83% · crlf 88% · ssti 89% · smuggle 90% … xss 98% · xxe 100%; by evasion,
   chained transforms and `whitespace_swap` (81%) sit *below* plain (90%).
 - **External validity.** Train here, test on CSIC-2010 / ECML-PKDD-2007: F1 falls
-  from ~96 in-corpus to ~41–46 cross-corpus. Synthetic detection numbers do not
-  transfer unchanged; report both.
+  from ~96 in-corpus to ~41–46 cross-corpus. **Do not quote that F1 on its own —
+  it is threshold collapse, not graded degradation.** Recall is ~100% and
+  precision equals the base rate, i.e. the model fires on nearly every row; an
+  all-positive classifier scores exactly 41.0 at CSIC's base rate. Threshold-free
+  the picture is worse and more honest: **AUC 0.53 against CSIC-2010** (near
+  chance) and **0.72 against ECML/PKDD**. Synthetic detection signal does not
+  transfer; see [DATASHEET.md](DATASHEET.md) > Limitations.
 
 ## Evaluation protocols
 
@@ -166,7 +172,8 @@ python -m src.evaluate --predictions my_scores.(csv|parquet|npy)
 - **near_dup** — digit-masking collapses no large block of rows to one skeleton
 - **evasion_artifact** — no evasion marker (`%25`, `/**/`, `&#`, `%00` …) is attack-exclusive; each also occurs in benign traffic
 - **disjoint_gen / struct_gen** — attack recall stays high on the payload-disjoint *and* template-disjoint test sets
-- **split_leak / struct_split_leak / split_balance** — no group spans a split (either split); attack ratio matches across splits; every family present in every split
+- **split_leak / struct_split_leak** — no group spans `split`, and no template spans `split_struct`
+- **split_balance** — attack ratio matches across splits and every family appears in all three — **on `split` only**. `split_struct` is template-disjoint but *not* balanced: attack prevalence runs 28.6% train / 21.2% test / 15.3% val (spread 0.134, against 0.0005 for `split`), `nosqli` and `ssrf` have no rows in its val or test sets, and six families have no val rows. Treat the structural gap as measured under a different family mix, not a like-for-like comparison — see [DATASHEET.md](DATASHEET.md) > Limitations
 - **benign_split_leak** — hard-negative/ambiguous benign cores never span splits, and the test holds ≥300 distinct benign cores (the benign mirror of the payload-disjoint attack split)
 - **test_groups** — the disjoint test holds ≥250 attack payload groups overall and ≥8 per family
 - **session_leak** — sessions never span a split and are not segregated by label
@@ -184,6 +191,7 @@ src/validate.py    the 25-check quality gate
 src/baselines.py   reference results: F1/PR-AUC/TPR@FPR, prevalence-corrected precision, slice recall, bootstrap CIs, cross-dataset
 src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence correction, submission scorer (--predictions)
 src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate
+src/audit_gaps.py  four known gaps NOT yet enforced by the gate; ships failing (0/4)
 src/figures.py     the eight paper figures; reads the result JSONs, never recomputes
 data/webinject2026.csv       the corpus (22 columns; see DATASHEET.md > Schema)
 data/webinject2026.parquet   same rows, typed columnar copy (NUL stripped in 25 rows; see DATASHEET.md > Limitations)

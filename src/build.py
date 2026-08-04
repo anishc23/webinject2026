@@ -305,10 +305,23 @@ def capture(recs, drop_5xx=True, pause=0.01):
         try:
             sess = sessions[r["app"]]
             if r["method"] in C.BODY_METHODS:
-                data = dict(urllib.parse.parse_qsl(r["body"])) if r["content_type"] == "form" else None
+                # Send the body the record actually carries. Sending only `form`
+                # bodies left json/graphql/multipart rows (37% of the corpus,
+                # including 5,272 attacks whose payload lives in the body) going
+                # out empty while Content-Type still advertised a payload, so the
+                # recorded `status` described a different request than the row.
+                ctype = r["content_type"]
+                kw = {}
+                if ctype == "form":
+                    kw["data"] = dict(urllib.parse.parse_qsl(r["body"]))
+                elif r["body"]:
+                    # json, graphql and multipart are sent verbatim: re-encoding
+                    # would drop the multipart boundary that hdrs declares, and
+                    # would normalise the exact bytes the payload depends on.
+                    kw["data"] = r["body"].encode("utf-8")
                 fn = getattr(sess, r["method"].lower())
-                resp = fn(url, data=data, headers=hdrs, timeout=5,
-                          allow_redirects=False)
+                resp = fn(url, headers=hdrs, timeout=5,
+                          allow_redirects=False, **kw)
             else:
                 fn = sess.get if r["method"] == "GET" else sess.delete
                 resp = fn(url, headers=hdrs, timeout=5, allow_redirects=False)

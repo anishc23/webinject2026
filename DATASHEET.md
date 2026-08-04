@@ -235,6 +235,38 @@ the raw `path`/`query`/`body`/`headers`).
   released corpus was built *without* it (1,979 payloads); a rebuild with
   `data/patt/` present draws from a larger pool and will not reproduce the
   published CSV byte-for-byte.
+- **Four known gaps the gate does not yet enforce.** Found by an external audit
+  of v3.0.0 and independently reproduced; `python -m src.audit_gaps` runs them
+  and currently returns 0/4. They are targeted for the next rebuild.
+  - **Lexical register leak (the serious one).** Delete every character that is
+    not a letter, then delete every word occurring in the seed payload pool, and
+    the label is still recoverable from the ordinary words left behind:
+    **AUC 0.904** on the payload-disjoint test, and **0.990** for attack versus
+    the `hard_negative` tier alone. (Those figures use only vocabulary occurring
+    in both classes in training, so they cannot be explained by residue from
+    encoding evasions; the unrestricted numbers are 0.927 and 0.998.) The cause
+    is construction: attack rows are generated independently and receive
+    routine-tier filler, while hard negatives carry prose cores, so carrier
+    register encodes tier and tier encodes label. This is the same *shape* of
+    defect as the v2.1 header leak — a character-class shortcut was removed and
+    a lexical-register shortcut took its place. `char_class` and `hard_neg` both
+    pass, because neither looks at token-to-label association.
+  - **`split_struct` is not balanced.** See the note under the quality gate in
+    the README: template-disjoint but not family-complete or prevalence-matched.
+    The 87.1 -> 77.2 structural gap is therefore measured under a different
+    family mix and is not a like-for-like comparison.
+  - **`session` carries no sequential signal.** Per-session attack-rate variance
+    is 0.989x the i.i.d. binomial expectation (an i.i.d. resample of the same
+    session sizes gives 0.997x), so attacks are independent within sessions and
+    no sequence model can beat a per-request model. `session_leak` passes
+    *because* label-independence was enforced, which is what removes the signal.
+    Treat "sequence/behavioural modelling" below as aspirational, not supported.
+  - **Cross-corpus transfer is reported with a collapsing metric.** The F1 of
+    ~41/46 is threshold collapse, not graded degradation: recall is ~100% and
+    precision equals the base rate, i.e. the model predicts attack on nearly
+    every row. An all-positive classifier scores exactly 41.0 at CSIC's base
+    rate. Threshold-free, transfer is AUC 0.53 against CSIC-2010 (near-chance
+    ranking) and 0.72 against ECML/PKDD. Quote those, not the F1.
 - **25 rows contain raw NUL bytes** in `body` and `payload_raw` (20 traversal,
   5 cmdi; 12 train / 10 test / 3 val). This is faithful — null-byte injection
   truncates strings in the C layer beneath PHP and Java, so the byte has to
