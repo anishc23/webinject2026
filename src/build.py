@@ -182,15 +182,18 @@ def _benign_values(app, ep, tier, rng, core_idx=None):
     """
     carrier = None
     core_id = None
+    kind = ""
     if tier == "hard_negative":
         text_params = [n for n, t in ep["params"] if t in C.TEXT_TYPES]
         carrier = rng.choice(text_params)
         if core_idx is None:
             core_text, core_id = V.core_value(rng)
+            core_idx = int(core_id.split("-")[1])
         else:
             # Pre-assigned core: its split cell was fixed before generation, so
             # the pair cannot straddle a split.
             core_text, core_id = V.BENIGN_CORES[core_idx], f"benH-{core_idx:05d}"
+        kind = V.BENIGN_CORE_KINDS[core_idx] if core_idx is not None else ""
 
     values = []
     for name, ftype in ep["params"]:
@@ -198,7 +201,7 @@ def _benign_values(app, ep, tier, rng, core_idx=None):
             values.append((name, core_text))
         else:
             values.append((name, V.value_for(ftype, rng, tier)))
-    return values, carrier, core_id
+    return values, carrier, core_id, (kind if tier == "hard_negative" else "")
 
 
 def _benign_record(app, ep, tier, rng, core_idx=None):
@@ -225,12 +228,28 @@ def _benign_record(app, ep, tier, rng, core_idx=None):
     # Header punctuation is drawn i.i.d. (extra=None) for every row, so it never
     # correlates with tier or label. The tier's difficulty lives in the
     # parameter values, not the headers.
+    if tier == "hard_negative" and _MARKER_PROFILES and carrier:
+        # Unpaired hard negatives carry an attack-shaped character profile too.
+        # This tier exists to be punctuation-rich yet non-injective, so giving it
+        # the same marker counts a real payload would have is squarely on-purpose
+        # -- and without it only the 16,000 paired twins hold that punctuation,
+        # leaving `%` at 6.8% of benign against 31.3% of attacks.
+        prof = rng.choice(_MARKER_PROFILES)
+        extra_tokens = _mirror_charset(prof, rng)
+        if extra_tokens:
+            def _mark(v):
+                out = f"{v} {' '.join(extra_tokens)}".strip()
+                return str(v) if V.is_injective(out) else out
+            values = [(n, _mark(v) if n == carrier else v) for n, v in values]
+
     rec = _assemble(app, ep, values, rng, extra=None)
     rec.update({
         "label": 0, "attack_type": "benign", "family": "benign",
         "tier": tier, "evasion": "none", "placement": "",
         "template": f"benign:{tier}",
         "group": core_id or f"benR-{rng.getrandbits(48):x}",
+        "benign_category": (V.BENIGN_CORE_KINDS[core_idx]
+                            if tier == "hard_negative" and core_idx is not None else ""),
     })
     return rec
 
@@ -254,6 +273,87 @@ def _ambiguous_record(app, ep, rng, amb_idx=None):
         "template": "ambiguous", "group": core_id,
     })
     return rec
+
+
+
+# Benign carriers for each character injection relies on. Used to give the
+# benign twin of a pair the same character profile as the attack's payload, so
+# that no single character separates the classes. Every entry is ordinary text a
+# real user could type, and none matches vocab.INJECTION_GUARD.
+_CHAR_CARRIERS = {
+    "%": ["%25", "%20", "100%", "%%"],
+    "*": ["/**/", "**", "2*3", "***"],
+    "<": ["<3", "1<2", "<<"],
+    ">": [">>", "2>1", "->"],
+    "'": ["'12'", "''", "'9'"],
+    '"': ['"12"', '""', '"7"'],
+    "$": ["$19.99", "$0", "$$"],
+    "(": ["(1)", "(2)", "(3)"],
+    ")": ["(1)", "(2)", "(3)"],
+    "{": ["{1}", "{}", "{2}"],
+    "}": ["{1}", "{}", "{2}"],
+    "[": ["[1]", "[]", "[2]"],
+    "]": ["[1]", "[]", "[2]"],
+    "|": ["1|2", "||", "3|4"],
+    "\\": ["1\\2", "\\\\", "3\\4"],
+    "#": ["#1", "#7", "#42"],
+    "`": ["`1`", "``"],
+    ";": ["1; 2", ";;"],
+    "&": ["1&2", "&&"],
+    "=": ["1=2", "=="],
+    ":": ["10:30", "1:2"],
+    "-": ["1-2", "--x"],
+    "/": ["1/2", "//"],
+}
+
+_MARKER_PROFILES = []
+_MIRROR_CHARS = "%*<>'\"$(){}[]|\\#`"
+
+
+
+def _safe_trim(text, n):
+    """Cut `text` to n characters without manufacturing an artefact.
+
+    Two ways a naive slice bites. Cutting inside a percent-escape leaves a
+    dangling `%` or `%X` that decodes to U+FFFD, which then shows up as an
+    attack-only character. Cutting inside a token like `--x` leaves a trailing
+    `--`, which is a real SQL comment terminator and makes a hard negative a
+    mislabelled attack. Trim, then repair, then verify against the same guard
+    the gate uses.
+    """
+    out = text[:n]
+    out = re.sub(r"%[0-9A-Fa-f]?$", "", out)
+    while out and V.is_injective(out):
+        out = out[:-1].rstrip("-#/*%\\ ")
+    return out.rstrip()
+
+
+def _mirror_charset(payload, rng):
+    """Benign tokens giving the same character profile as `payload`.
+
+    A payload necessarily carries the punctuation injection is built from. If
+    the benign twin does not, then a single character separates the classes and
+    the corpus has a shortcut -- which is exactly what src.shortcut_stats
+    measures. Presence parity is not enough either: the gate's evasion_artifact
+    check only asks whether a marker occurs in both classes, and `%` still sat
+    at 6.8% of benign against 31.3% of attacks (Cramer V 0.318, on par with
+    CSIC-2010's worst character). Matching counts closes that.
+    """
+    out = []
+    for ch in _MIRROR_CHARS:
+        need = payload.count(ch)
+        if not need:
+            continue
+        carriers = _CHAR_CARRIERS.get(ch)
+        if not carriers:
+            continue
+        have = 0
+        while have < need:
+            tok = rng.choice(carriers)
+            out.append(tok)
+            have += tok.count(ch)
+    rng.shuffle(out)
+    return out
 
 
 def _greedy_partition(keys, weights, rng):
@@ -380,7 +480,7 @@ def _paired_records(app, ep, pool, rng, pair_no):
     raw, template, group = rng.choice(cell_pool[fam])
 
     tier = "hard_negative" if core_idx is not None else "routine"
-    values, carrier, core_id = _benign_values(app, ep, tier, rng, core_idx=core_idx)
+    values, carrier, core_id, bcat = _benign_values(app, ep, tier, rng, core_idx=core_idx)
 
     pair_id = f"pair-{pair_no:06d}"
     _twin_values = list(values)
@@ -393,6 +493,13 @@ def _paired_records(app, ep, pool, rng, pair_no):
     target = rng.choice(ep["inject"])
     body_names = set(ep.get("body", []))
     in_body = target in body_names and rng.random() < 0.9
+    # Header placement, restored for v4.1. The paired path originally dropped it,
+    # taking header-placed attacks from 487 to 0 -- which silently removed the
+    # placement CRLF and request smuggling are actually about. The pair stays a
+    # counterfactual: both twins carry the same header, one with the payload
+    # appended and one with an equal-length benign span.
+    in_header = (not in_body) and fam in C.HEADER_FAMILIES \
+        and rng.random() < C.HEADER_INJECTION_RATE
 
     # Append the payload to the target slot rather than replacing its value.
     # Replacing it removes that slot's benign prose from the attack row, so
@@ -426,16 +533,47 @@ def _paired_records(app, ep, pool, rng, pair_no):
     # a length-only model reached AUC 0.611. Length is the oldest shortcut in
     # this corpus's history; reintroducing it while closing the register leak
     # would trade one artefact for another.
-    ftype = dict(ep["params"]).get(target)
-    decoy = ""
-    while len(decoy) < len(payload):
+    ftype = dict(ep["params"]).get(target) or "text"
+    # Character profile first, then ordinary filler, then truncate to the
+    # payload's exact length: the twin matches the attack on both the characters
+    # it contains and how much text it carries.
+    span_len = len(payload)
+    # Markers first, capped at 60% of the budget, and only whole tokens. Word
+    # filler then fills the rest, so the final cut always lands inside ordinary
+    # words -- never inside a percent-escape or a `--`, which is what previously
+    # produced U+FFFD replacement characters and mislabelled hard negatives.
+    # The cap also guarantees the twin keeps some ordinary text, including the
+    # accented and CJK names that give benign rows their character repertoire.
+    marks, budget = [], int(span_len * 0.6)
+    for tok in _mirror_charset(payload, rng):
+        if sum(len(t) + 1 for t in marks) + len(tok) > budget:
+            break
+        marks.append(tok)
+    decoy = " ".join(marks)
+    while len(decoy) < span_len:
         nxt = str(V.value_for(ftype, rng, tier)) if ftype else ""
         if not nxt:
             break
         decoy = f"{decoy} {nxt}".strip()
-    decoy = decoy[:len(payload)]   # exact, so the pair matches on length too
+    decoy = _safe_trim(decoy, span_len)
 
-    values = [(n, _append(v, decoy) if n == target else v) for n, v in values]
+    def _safe_join(v, span):
+        """Append, then verify the *joined* value. Trimming the span alone is
+        not enough: a carrier ending in `-` beside a span starting with `-`
+        makes `--` at the seam, which is a real SQL comment terminator and would
+        turn a hard negative into a mislabelled attack."""
+        out = _append(v, span)
+        if V.is_injective(out):
+            # Trimming character by character can leave a dangling `#` or `--`
+            # against a carrier that is itself a SQL snippet (the `code`
+            # category holds real queries). Drop the span for this row instead:
+            # one row without a mirrored profile costs nothing, a mislabelled
+            # hard negative costs the corpus its guarantee.
+            return str(v)
+        return out
+
+    if not in_header:
+        values = [(n, _safe_join(v, decoy) if n == target else v) for n, v in values]
     benign = _assemble(app, ep, values, rng, extra=None)
     benign.update({
         "label": 0, "attack_type": "benign", "family": "benign",
@@ -445,15 +583,31 @@ def _paired_records(app, ep, pool, rng, pair_no):
         "pair_id": pair_id, "split": split, "split_struct": split_struct,
     })
 
-    atk_values = [(n, _append(v, payload) if n == target else v)
-                  for n, v in _twin_values]
+    atk_values = ([(n, v) for n, v in _twin_values] if in_header else
+                  [(n, _append(v, payload) if n == target else v)
+                   for n, v in _twin_values])
     attack = _assemble(app, ep, atk_values, rng, extra=None,
                        reuse=benign["_envelope"])
+    if in_header:
+        hname = "User-Agent" if rng.random() < 0.5 else "Referer"
+        hb = json.loads(benign["headers"])
+        ha = json.loads(attack["headers"])
+        base = str(hb.get(hname, ""))
+        ha[hname] = _append(base, payload)
+        cand = _append(base, decoy)
+        hb[hname] = base if V.is_injective(cand) else cand
+        attack["headers"] = _hdr_json(ha)
+        benign["headers"] = _hdr_json(hb)
+
     attack.update({
         "label": 1, "attack_type": fam, "family": fam, "tier": "attack",
-        "evasion": evasion, "placement": "body" if in_body else "query",
+        "evasion": evasion,
+        "placement": "header" if in_header else ("body" if in_body else "query"),
         "template": template, "group": group, "payload_slot": target,
         "pair_id": pair_id, "split": split, "split_struct": split_struct,
+        # The attack inherits its twin's carrier category, so a false negative
+        # can be attributed to the benign register it was hiding in.
+        "benign_category": bcat,
     })
     return benign, attack
 
@@ -888,7 +1042,7 @@ def _assign_sessions(recs, rng):
 COLUMNS = ["app", "method", "path", "query", "body", "content_type", "headers",
            "payload", "payload_raw", "label", "attack_type", "family",
            "placement", "tier", "evasion", "source", "status", "session",
-           "split", "split_struct", "template", "group", "pair_id"]
+           "split", "split_struct", "template", "group", "pair_id", "benign_category"]
 
 
 def write_csv(recs, path):
@@ -1005,6 +1159,7 @@ def main():
         print("         aside to rebuild the published corpus.")
 
     pool = P.load_pool(patt_root=PATT_ROOT)
+    _MARKER_PROFILES.extend(p for v in pool.values() for p, _ in v)
     json.dump({k: [p for p, _ in v] for k, v in pool.items()},
               open(os.path.join(CORPUS, "payloads.json"), "w"), ensure_ascii=False)
     print("payload pool:", {k: len(v) for k, v in pool.items()},

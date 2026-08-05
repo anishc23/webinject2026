@@ -1,4 +1,4 @@
-# Datasheet — WebInject2026 v4.0.0
+# Datasheet — WebInject2026 v4.1.0
 
 Following Gebru et al., *Datasheets for Datasets* (2021). This document is the
 authoritative description of what the corpus is, how it was made, and where it
@@ -28,7 +28,7 @@ not memorising payload strings or exploiting an artefact of generation.
 **What does each instance represent?**
 One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack. Every attack row is the counterfactual twin of a benign row (shared `pair_id`).
 
-**Schema (23 columns).**
+**Schema (24 columns).**
 
 | Column | Description |
 |---|---|
@@ -53,6 +53,7 @@ One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack. Every attack r
 | `split` | `train`/`val`/`test` — **payload-disjoint, family/tier-stratified** (primary) |
 | `split_struct` | `train`/`val`/`test` — **template-disjoint** (structural generalisation) |
 | `template` | Attack template the payload was generated from (`sqli:union`, …); `benign:*` / `ambiguous` for benign |
+| `benign_category` | Register of the hard-negative carrier: `review`, `search`, `code`, `qa`, `encoded`, `log`, `markup`. An attack inherits its twin's, so a miss is attributable to the benign text it hid in. Empty for routine/ambiguous rows |
 | `pair_id` | Counterfactual pair id. Each attack row and its benign twin share one: same endpoint, carrier values, headers and boundary, differing only by the injected span. Empty for unpaired benign rows |
 | `group` | Split group; `split` never shares one. Attack = canonical-payload hash; ambiguous = `ambigD`/`ambigV` (frame × specimen) core; hard_negative = `benH` core; routine = per-row |
 
@@ -64,7 +65,7 @@ One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack. Every attack r
 - Attack 16,000 across: xss 3,636 · sqli 3,546 · ssti 1,580 · nosqli 1,257 · jndi 1,009 · traversal 868 · ssrf 787 · cmdi 769 · deser 751 · protopollute 650 · ldapi 483 · smuggle 269 · xxe 250 · crlf 145.
 - Distinct attack payloads: 1,942 groups (386 held out in the test split,
   >=10 per family), across 84 templates (24 held out in the structural test).
-  Placement: body 6,867 · query 9,133. Content type: query 31,551 · json 15,722 · multipart 5,295 · form 7,095 · graphql 1,737.
+  Placement: query 8,511 · body 6,963 · header 526. Content type: query 31,551 · json 15,722 · multipart 5,295 · form 7,095 · graphql 1,737.
   Evasion applied to 5,617 (885 chained). 8,236 sessions.
 
 **Is anything missing?**
@@ -233,6 +234,17 @@ the raw `path`/`query`/`body`/`headers`).
   released corpus was built *without* it (1,979 payloads); a rebuild with
   `data/patt/` present draws from a larger pool and will not reproduce the
   published CSV byte-for-byte.
+- **Single characters carry a residual, measured association.** `%` sits at
+  18.2% of benign rows against
+  31.2% of attacks (Cramer's V
+  0.139). This is deliberately *not* driven to zero: injection genuinely uses
+  punctuation and the `routine` tier is deliberately ordinary alphanumeric
+  traffic, so an exact match would falsify the benign distribution. What is
+  enforced by `src.shortcut_stats` in CI is that no single character yields a
+  usable detector (best AUC 0.565, ceiling 0.60) and that every association is
+  smaller than in CSIC-2010 (0.316) or ECML/PKDD (0.411). v4.0.0 had this at
+  0.318 -- on par with CSIC -- and the claim that no character predicted the
+  label was simply wrong until 4.1.0 measured it.
 - **Closed in v4.0.0, and now enforced.** An external audit of v3.0.0 found four
   properties the 25-check gate did not test; all four reproduced. They are fixed
   by construction and `python -m src.audit_gaps` is a blocking CI step, so the

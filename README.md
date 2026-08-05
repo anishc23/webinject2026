@@ -3,7 +3,7 @@
 A contemporary, leakage-audited corpus for **web-application injection-attack
 detection**. 61,400 labelled HTTP requests across three applications and fourteen
 attack families, shipped with fixed payload-disjoint **and** template-disjoint
-splits and an automated 30-check quality gate that fails the build if any known
+splits and an automated 31-check quality gate that fails the build if any known
 shortcut or leak reappears.
 
 > **v3.0 rebuild.** v2.1 made the *attack* side rigorous but left two measurable
@@ -23,7 +23,7 @@ shortcut or leak reappears.
 > vocabulary at AUC 0.904. v4 builds every attack as the counterfactual twin of
 > a benign row (shared `pair_id`), decides all split membership before
 > generation, and gives sessions real burst structure. Carrier-only AUC is now
-> 0.608 and the word n-gram baseline falls from F1 82.1 to 30.3. The gate is 30
+> 0.608 and the word n-gram baseline falls from F1 82.1 to 45.2. The gate is 31
 > checks. See [CHANGELOG.md](CHANGELOG.md).
 
 New to the problem, or preparing a talk on it?
@@ -39,12 +39,12 @@ from first principles, in three layers per idea (intuition, mechanism, detail).
 | Benign / attack | 45,400 / 16,000 (26.1% attack) |
 | Applications | DVWA, OWASP Juice Shop, bWAPP (35 endpoints) |
 | Attack families | SQLi, XSS, command injection, path traversal, SSTI, NoSQLi, SSRF, CRLF, LDAP, XXE, **JNDI/Log4Shell, deserialization, prototype pollution, request smuggling** |
-| Distinct attack payloads (groups) | 1,942 — **386 held out in test**, ≥10 per family |
+| Distinct attack payloads (groups) | 1,945 — **388 held out in test**, ≥10 per family |
 | Attack templates | 84 — **24 held out in the structural test** |
 | Methods | GET / POST / PUT / PATCH / DELETE |
-| Content types | query 31,551 · json 15,722 · form 7,095 · multipart 5,295 · graphql 1,737 |
-| Injection placement | query 9,133 · body 6,867 · header 0 |
-| Evasion-transformed attacks | 5,617 (35%), of which 885 chained |
+| Content types | query 31,371 · json 15,692 · graphql 1,899 · form 6,953 · multipart 5,485 |
+| Injection placement | query 8,511 · body 6,963 · header 526 |
+| Evasion-transformed attacks | 5,531 (35%), of which 950 chained |
 | Splits | `split` (payload-disjoint) · `split_struct` (template-disjoint); both family/tier-stratified 70/10/20 |
 
 Benign traffic is deliberately built in three tiers so the task cannot collapse
@@ -62,6 +62,7 @@ to a punctuation test:
 pip install -r requirements.txt
 
 shasum -a 256 -c SHA256SUMS  # confirm the files you have are the files released
+python -m src.shortcut_stats  # per-character chi2 / Cramer V / odds ratio vs CSIC + ECML
 python -m src.build          # rebuild the corpus offline (reproducible, seed=42)
 python -m src.validate       # 25-check quality gate; non-zero exit on any FAIL
 python -m src.audit_gaps     # 5 construction checks (register, splits, sessions, pairs, transfer)
@@ -102,25 +103,25 @@ group-bootstrap CIs, and cross-dataset transfer. Payload-disjoint headline:
 
 | Baseline | F1 | PR-AUC | TPR@1%FPR | TPR@0.1%FPR |
 |---|--:|--:|--:|--:|
-| length only (1 feature) | 0.0 | 30.0 | 0.0 | 0.0 |
-| special-char count (1 feature) | **10.0** | 36.7 | 4.0 | **0.3** |
-| rule signature (14 regex) | 59.8 | 51.2 | 0.9 | 0.0 |
-| word n-gram (1–2) + LogReg | 30.3 | 58.6 | 22.4 | 17.8 |
-| char n-gram (3–5) + LogReg | **92.4** | 99.0 | 94.7 | **81.9** |
+| length only (1 feature) | 0.0 | 29.3 | 0.0 | 0.0 |
+| special-char count (1 feature) | **0.1** | 29.5 | 0.7 | **0.0** |
+| rule signature (14 regex) | 59.9 | 51.6 | 1.2 | 0.0 |
+| word n-gram (1–2) + LogReg | 45.2 | 69.8 | 24.0 | 16.1 |
+| char n-gram (3–5) + LogReg | **93.1** | 99.3 | 96.8 | **86.9** |
 
-The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 17.8 → 81.9** across
+The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 16.1 → 86.9** across
 baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
 
-- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 88.8 on a random
-  split, **81.9 on the payload-disjoint split, and 53.0 on the template-disjoint
-  (`split_struct`) split** — a 28.9-point structural gap. Report all three.
+- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 91.2 on a random
+  split, **86.9 on the payload-disjoint split, and 57.1 on the template-disjoint
+  (`split_struct`) split** — a 29.8-point structural gap. Report all three.
 - **Prevalence matters.** At the corpus's 26% attack rate the char n-gram's
-  precision at 1% FPR is 97.0%; at a realistic **0.5% prevalence it is 32.2%** (80.5%
+  precision at 1% FPR is 97.1%; at a realistic **0.5% prevalence it is 32.7%** (81.4%
   if you can hold FPR to 0.1%). Report the precision at *your* operating
   prevalence — `evaluate.py` prints the table.
 - **Group-bootstrap 95% CI** (char n-gram, disjoint, resampling payload groups —
-  not rows): F1 [90.7, 93.9], recall [83.8, 89.4], TPR@0.1%FPR [77.1, 85.3].
-- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 33.8%** · ssti 75.9% · ssrf 76.0% … xxe 96.4% · jndi 99.1%.
+  not rows): F1 [91.4, 94.5], recall [84.5, 90.0], TPR@0.1%FPR [81.4, 89.6].
+- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 30.7%** · deser 75.7% · ssti 76.1% … jndi 98.3% · xxe 100.0%.
 - **External validity.** Train here, test on CSIC-2010 / ECML-PKDD-2007: F1 falls
   from ~96 in-corpus to ~41–46 cross-corpus. **Do not quote that F1 on its own —
   it is threshold collapse, not graded degradation.** Recall is ~100% and
@@ -129,6 +130,34 @@ baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
   the picture is worse and more honest: **AUC 0.57 against CSIC-2010** and **0.76 against
   ECML/PKDD**, with the model firing on 100% of rows at threshold 0.5. Synthetic detection signal does not
   transfer; see [DATASHEET.md](DATASHEET.md) > Limitations.
+
+## No single character predicts the label
+
+Asserting that benign traffic "also contains quotes" is worth nothing. `python -m
+src.shortcut_stats` tests it: for each character injection relies on it builds a
+one-feature detector ("flag iff present") and reports a chi-square, Cramer's V,
+a Haldane-Anscombe odds ratio with a 95% interval, and the AUC — for this corpus
+and for both corpora it replaces.
+
+| Corpus | strongest character | Cramer's V | best single-char AUC |
+|---|---|--:|--:|
+| **WebInject2026** | `%` | **0.139** | **0.565** |
+| CSIC-2010 | `-` | 0.316 | 0.672 |
+| ECML/PKDD-2007 | `)` | 0.411 | 0.662 |
+
+The claim is deliberately not "zero association", which would be false and easy
+to refute. Injection genuinely uses punctuation, and the `routine` tier is
+deliberately ordinary alphanumeric traffic, so forcing an exact match would
+falsify the benign distribution — a worse fault than the one being fixed. What
+is enforced in CI is that **no single character yields a usable detector**
+(AUC ≤ 0.60) and that every association is **smaller than in either reference
+corpus**. The residual, which exceeds the conventional 0.10 small-effect
+boundary, is reported rather than argued away.
+
+Hard negatives are labelled by register in the shipped `benign_category` column
+— review, search, code, qa, encoded, log, markup — so false positives can be
+attributed to the kind of benign text that caused them, which no other
+web-attack corpus supports.
 
 ## Evaluation protocols
 
@@ -142,11 +171,14 @@ baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
 | `lofo` | leave-one-family-out | zero-shot recall on an unseen attack family |
 | `evasion` | plain→evaded | recall on obfuscations the model never trained on |
 | `paired` | matched twins | does the score move *because of* the injected span? |
+| `calibration` | test split | is the score a probability? Brier / ECE / MCE + reliability curve |
+| `errors` | test split | false positives by benign register, misses by family |
+| `attribution` | matched twins | how much of the score comes from the injected span |
 
 Every protocol reports precision corrected to 0.5% / 1% / 5% / 26% attack
 prevalence. Reference char n-gram, payload-disjoint test:
 
-- **Structural gap.** TPR@0.1%FPR falls **81.9 → 53.0** from the payload-disjoint
+- **Structural gap.** TPR@0.1%FPR falls **86.9 → 57.1** from the payload-disjoint
   to the template-disjoint split (28.9 pts) — the model leans on template shape.
 - **Zero-shot (LOFO) recall spans 6.9 → 84.6%.** A model that never saw the family
   barely flags protopollute (6.9%) or xss (7.5%), but transfers to smuggle (84.6%)
@@ -160,6 +192,17 @@ prevalence. Reference char n-gram, payload-disjoint test:
   **86.7%**. A detector keying on carrier text rather than the injection shows a
   delta near zero here even when its aggregate F1 looks strong — which no metric
   over independently drawn rows can reveal.
+- **Calibration.** Brier 0.0252, ECE 0.0556, MCE 0.5294; mean score
+  0.242 against a base rate of 0.261. The reliability curve ships as data
+  in `data/evaluation.json`, not as a picture.
+- **Error analysis.** Every hard-negative register sits at 0.00% false positives or
+  below; misses concentrate in command injection. Attributable because
+  `benign_category` ships with the data.
+- **Span attribution.** Deleting the injected span moves the score
+  0.817 → 0.057 (twin 0.025); median attribution
+  0.966, localisation rate 87.3%. Because the counterfactual is in
+  the data, this is measured rather than approximated as SHAP or integrated
+  gradients would.
 - **Evasion hold-out.** Trained on plain attacks only, recall on *evaded* test
   attacks is **54.4%** (58.8% on chained transforms).
 
@@ -206,6 +249,7 @@ src/baselines.py   reference results: F1/PR-AUC/TPR@FPR, prevalence-corrected pr
 src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence correction, submission scorer (--predictions)
 src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate
 src/audit_gaps.py  five construction checks (register/splits/sessions/pairs/transfer); blocking in CI
+src/shortcut_stats.py  per-character shortcut statistics against CSIC-2010 and ECML/PKDD; blocking in CI
 src/figures.py     the eight paper figures; reads the result JSONs, never recomputes
 data/webinject2026.csv       the corpus (22 columns; see DATASHEET.md > Schema)
 data/webinject2026.parquet   same rows, typed columnar copy (NUL stripped in 25 rows; see DATASHEET.md > Limitations)

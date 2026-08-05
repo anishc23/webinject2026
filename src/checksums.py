@@ -30,6 +30,7 @@ FILES = [
     "data/manifest.json",
     "data/baselines.json",
     "data/evaluation.json",
+    "data/shortcut_stats.json",
     "corpus/payloads.json",
     "data/csic_parsed.csv",
     "data/ecml_parsed.csv",

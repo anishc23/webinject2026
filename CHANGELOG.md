@@ -1,5 +1,79 @@
 # Changelog
 
+## 4.1.0 - character-level shortcut statistics, benign taxonomy, calibration,
+##         error analysis and span attribution
+
+Answers five reviewer-facing questions the corpus could previously only assert.
+Corpus rebuilt; schema gains `benign_category`.
+
+### Fixed
+- **Single characters still predicted the label, and the claim that they did not
+  was false.** A per-character test (chi-square, Cramer's V, Haldane-Anscombe
+  odds ratio with 95% CI, and a one-feature AUC) put `%` at 6.8% of benign rows
+  against 31.3% of attacks -- Cramer's V 0.318, effectively identical to
+  CSIC-2010's worst character (0.316). `%` and `*` come from double-URL-encoding
+  and `/**/` comment evasions; `<`, `>`, `'`, `$` come from the payloads
+  themselves. The gate's `evasion_artifact` check missed it because it asks only
+  whether a marker occurs in both classes, never whether the rates match.
+
+  The benign twin of a pair now mirrors its attack's **character profile**, not
+  just its length, and unpaired hard negatives carry an attack-shaped profile
+  too -- squarely the purpose of a tier defined as punctuation-rich but
+  non-injective. Max Cramer's V falls **0.318 -> 0.139** and the best
+  single-character AUC **0.622 -> 0.565**, against 0.316 for CSIC-2010 and
+  0.411 for ECML/PKDD.
+
+  The mirror tokens are digit/punctuation only (`%25`, `/**/`, `[1]`, `1|2`).
+  Word-bearing carriers were tried first and reintroduced the register leak,
+  because words present in benign rows and absent from payloads are exactly the
+  signal pairing exists to remove.
+
+### Added
+- **`src/shortcut_stats.py`**, a blocking CI step. Reports every statistic
+  per character for this corpus and both reference corpora.
+
+  The contract is deliberately not "zero association". Injection genuinely uses
+  punctuation and the `routine` tier is deliberately ordinary alphanumeric
+  traffic, so forcing a perfect match would falsify the benign distribution --
+  a worse fault than the one being fixed. What is enforced: no single character
+  yields a usable detector (AUC <= 0.60), and every association is smaller than
+  in both corpora this one replaces. The residual, which exceeds the
+  conventional 0.10 small-effect boundary, is reported rather than claimed away.
+- **`benign_category` column** exposing the seven-way hard-negative taxonomy
+  that already existed inside `vocab.py` but was never shipped: review, search,
+  code, qa, encoded, log, markup. An attack inherits its twin's category, so a
+  miss can be attributed to the benign register it was hiding in.
+- **Calibration protocol** (`--protocol calibration`): Brier 0.0252,
+  ECE 0.0556, MCE 0.5294, plus the reliability curve as data
+  rather than a picture. Mean score 0.242 against a base rate
+  of 0.261.
+- **Error analysis** (`--protocol errors`): false positives by benign category
+  and by tier, misses by family. On the reference model every hard-negative
+  category is at 0.00% false positives; the misses concentrate in command
+  injection. No other web-attack corpus can answer "what does my detector
+  mistake for an attack?" beyond one aggregate number.
+- **Span attribution** (`--protocol attribution`): because an attack is its twin
+  plus one appended span, the ground-truth explanation is known exactly, so
+  attribution is measured rather than approximated. Deleting the span moves the
+  score 0.817 -> 0.057
+  (twin 0.025); median span attribution
+  0.966, localisation rate
+  87.3%. This is what SHAP and integrated gradients
+  approximate, without the approximation.
+
+### Changed
+- Reference char n-gram, payload-disjoint: F1 93.1,
+  TPR@0.1%FPR 86.9. Structural TPR@0.1%FPR
+  57.1. Matched-pair accuracy
+  99.9% over 3,225 pairs.
+- **Header placement restored.** The v4.0.0 paired path dropped it, taking
+  header-placed attacks from 487 to **0** and silently removing the placement
+  CRLF and request smuggling are actually about. Now 526, and the pair
+  stays a counterfactual: both twins carry the same header, one with the payload
+  appended and one with an equal-length benign span.
+- The gate is now 25 validate checks + 5 construction checks + the
+  character-statistics check, all blocking in CI.
+
 ## 4.0.0 - counterfactual pairing, pre-assigned splits, bursty sessions
 
 An external audit of v3.0.0 found four properties the 25-check gate did not

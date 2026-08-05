@@ -1,7 +1,7 @@
 {
   "name": "WebInject2026",
-  "version": "4.0.0",
-  "built_utc": "2026-08-04T18:48:46.085364+00:00",
+  "version": "4.1.0",
+  "built_utc": "2026-08-05T15:54:21.863531+00:00",
   "seed": 42,
   "capture": false,
   "rows": 61400,
@@ -11,39 +11,39 @@
     "0": 45400
   },
   "attack_type": {
-    "ssti": 1615,
+    "jndi": 964,
+    "xss": 3625,
+    "ldapi": 511,
     "benign": 45400,
-    "xss": 3629,
-    "ldapi": 501,
-    "sqli": 3498,
-    "cmdi": 729,
-    "nosqli": 1268,
-    "deser": 698,
-    "ssrf": 775,
+    "ssti": 1589,
+    "sqli": 3566,
+    "ssrf": 800,
     "traversal": 943,
-    "protopollute": 607,
-    "jndi": 1088,
-    "xxe": 238,
-    "smuggle": 233,
-    "crlf": 178
+    "crlf": 159,
+    "xxe": 252,
+    "nosqli": 1192,
+    "deser": 750,
+    "cmdi": 749,
+    "protopollute": 667,
+    "smuggle": 233
   },
   "family": {
-    "ssti": 1615,
+    "jndi": 964,
+    "xss": 3625,
+    "ldapi": 511,
     "benign": 43000,
+    "ssti": 1589,
+    "sqli": 3566,
     "benign_ambiguous": 2400,
-    "xss": 3629,
-    "ldapi": 501,
-    "sqli": 3498,
-    "cmdi": 729,
-    "nosqli": 1268,
-    "deser": 698,
-    "ssrf": 775,
+    "ssrf": 800,
     "traversal": 943,
-    "protopollute": 607,
-    "jndi": 1088,
-    "xxe": 238,
-    "smuggle": 233,
-    "crlf": 178
+    "crlf": 159,
+    "xxe": 252,
+    "nosqli": 1192,
+    "deser": 750,
+    "cmdi": 749,
+    "protopollute": 667,
+    "smuggle": 233
   },
   "tier": {
     "attack": 16000,
@@ -52,44 +52,45 @@
     "ambiguous": 2400
   },
   "content_type": {
-    "json": 15565,
-    "multipart": 5346,
-    "query": 31639,
-    "form": 6986,
-    "graphql": 1864
+    "query": 31371,
+    "json": 15692,
+    "graphql": 1899,
+    "form": 6953,
+    "multipart": 5485
   },
   "placement": {
-    "body": 6842,
-    "query": 9158
+    "query": 8511,
+    "body": 6963,
+    "header": 526
   },
-  "evasion_used": 5464,
-  "evasion_chained": 881,
+  "evasion_used": 5531,
+  "evasion_chained": 950,
   "split": {
-    "train": 42992,
-    "val": 6017,
-    "test": 12391
+    "train": 43026,
+    "test": 12352,
+    "val": 6022
   },
   "split_struct": {
-    "train": 46230,
-    "test": 10454,
-    "val": 4716
+    "train": 46281,
+    "val": 4731,
+    "test": 10388
   },
   "app": {
-    "dvwa": 17364,
-    "bwapp": 21058,
-    "juice": 22978
+    "bwapp": 21121,
+    "dvwa": 17443,
+    "juice": 22836
   },
-  "sessions": 8239,
+  "sessions": 8241,
   "groups_spanning_split": 0,
   "groups_spanning_split_struct": 0,
   "groups": {
-    "attack_total": 1947,
-    "attack_test": 389,
-    "attack_test_per_family_min": 11,
+    "attack_total": 1945,
+    "attack_test": 388,
+    "attack_test_per_family_min": 10,
     "attack_templates": 84,
     "attack_templates_test": 24,
     "benign_cores": 2344,
     "ambiguous_cores": 884,
-    "ambiguous_verbatim_rows": 845
+    "ambiguous_verbatim_rows": 850
   }
 }

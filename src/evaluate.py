@@ -206,6 +206,142 @@ def _print_metrics(name, m):
 
 
 
+
+def protocol_calibration(df, n_bins=15):
+    """Is the score a probability, or just a ranking?
+
+    TPR at a false-positive budget says nothing about whether 0.9 means 90%.
+    A miscalibrated detector cannot be given a threshold policy, and cannot be
+    combined with other signals. Reported: Brier score, expected and maximum
+    calibration error over equal-width bins, and the reliability curve itself so
+    it can be plotted rather than taken on trust.
+    """
+    tr = df[df.split == "train"]
+    te = df[df.split == "test"]
+    v, m = _fit_char(tr.payload.astype(str), tr.label)
+    p = _score(v, m, te.payload.astype(str))
+    y = te.label.to_numpy()
+
+    edges = np.linspace(0, 1, n_bins + 1)
+    idx = np.clip(np.digitize(p, edges[1:-1]), 0, n_bins - 1)
+    curve, ece, mce = [], 0.0, 0.0
+    for b in range(n_bins):
+        sel = idx == b
+        if not sel.any():
+            continue
+        conf, acc, w = float(p[sel].mean()), float(y[sel].mean()), int(sel.sum())
+        gap = abs(acc - conf)
+        ece += w / len(y) * gap
+        mce = max(mce, gap)
+        curve.append({"bin_lo": float(edges[b]), "bin_hi": float(edges[b + 1]),
+                      "n": w, "mean_score": conf, "empirical_rate": acc})
+    return {
+        "brier": float(np.mean((p - y) ** 2)),
+        "ece": float(ece), "mce": float(mce),
+        "base_rate": float(y.mean()), "mean_score": float(p.mean()),
+        "reliability": curve,
+    }
+
+
+def protocol_error_analysis(df):
+    """Which benign register produces the false positives, and which family the
+    false negatives.
+
+    `benign_category` labels each hard negative by the kind of text it carries
+    (review, search, code, qa, encoded, log, markup). No other web-attack corpus
+    ships that, so no other corpus can answer "what does my detector mistake for
+    an attack?" beyond a single aggregate number.
+    """
+    tr = df[df.split == "train"]
+    te = df[df.split == "test"]
+    v, m = _fit_char(tr.payload.astype(str), tr.label)
+    p = _score(v, m, te.payload.astype(str))
+    t = te.assign(score=p, pred=(p >= 0.5).astype(int))
+
+    fp_by_cat = {}
+    ben = t[t.label == 0]
+    for cat, grp in ben.groupby(ben.benign_category.replace("", "(routine/ambiguous)")):
+        fp_by_cat[str(cat)] = {
+            "n": int(len(grp)),
+            "false_positives": int((grp.pred == 1).sum()),
+            "fp_rate": float((grp.pred == 1).mean()),
+            "mean_score": float(grp.score.mean()),
+        }
+    fn_by_family = {}
+    atk = t[t.label == 1]
+    for fam, grp in atk.groupby("attack_type"):
+        fn_by_family[str(fam)] = {
+            "n": int(len(grp)),
+            "false_negatives": int((grp.pred == 0).sum()),
+            "fn_rate": float((grp.pred == 0).mean()),
+            "mean_score": float(grp.score.mean()),
+        }
+    fp_by_tier = {str(k): float(v_) for k, v_ in
+                  ben.groupby("tier").pred.mean().items()}
+    return {"false_positives_by_benign_category": fp_by_cat,
+            "false_positives_by_tier": fp_by_tier,
+            "false_negatives_by_family": fn_by_family}
+
+
+def protocol_attribution(df, n_sample=1500):
+    """Does the model look at the injected span, or somewhere else?
+
+    Because each attack is its twin plus one appended span, the ground-truth
+    "explanation" is known exactly -- no other corpus in this area can say that.
+    So attribution is measurable rather than illustrative: delete the injected
+    span from the attack and see how much of the score goes with it.
+
+      span_attribution   (score(attack) - score(attack minus span))
+                         / (score(attack) - score(twin))
+                         1.0 means the whole decision came from the injected
+                         span; near 0 means the model is reading the carrier.
+      localisation_rate  share of attacks where removing the span drops the
+                         score below 0.5 -- the model's decision actually
+                         depended on it.
+
+    This is what SHAP or integrated gradients are usually used to approximate,
+    without the approximation: the counterfactual is in the data.
+    """
+    tr = df[df.split == "train"]
+    v, m = _fit_char(tr.payload.astype(str), tr.label)
+    te = df[(df.split == "test") & (df.pair_id.astype(str) != "")]
+    piv = te.pivot_table(index="pair_id", columns="label", values="payload",
+                         aggfunc="first").dropna()
+    if piv.empty:
+        return {}
+    piv = piv.head(n_sample)
+    atk_text = piv[1].astype(str).tolist()
+    twin_text = piv[0].astype(str).tolist()
+
+    s_atk = _score(v, m, pd.Series(atk_text))
+    s_twin = _score(v, m, pd.Series(twin_text))
+    # remove from the attack the longest contiguous run absent from its twin:
+    # that run is the injected span.
+    ablated = []
+    for a, b in zip(atk_text, twin_text):
+        i = 0
+        while i < min(len(a), len(b)) and a[i] == b[i]:
+            i += 1
+        j = 0
+        while j < min(len(a), len(b)) - i and a[len(a) - 1 - j] == b[len(b) - 1 - j]:
+            j += 1
+        ablated.append(a[:i] + a[len(a) - j:] if i + j < len(a) else a)
+    s_abl = _score(v, m, pd.Series(ablated))
+
+    denom = s_atk - s_twin
+    ok = np.abs(denom) > 1e-6
+    ratio = np.where(ok, (s_atk - s_abl) / np.where(ok, denom, 1.0), np.nan)
+    return {
+        "n": int(len(atk_text)),
+        "mean_score_attack": float(s_atk.mean()),
+        "mean_score_span_removed": float(s_abl.mean()),
+        "mean_score_twin": float(s_twin.mean()),
+        "span_attribution_mean": float(np.nanmean(ratio)),
+        "span_attribution_median": float(np.nanmedian(ratio)),
+        "localisation_rate": float(((s_atk >= 0.5) & (s_abl < 0.5)).mean()),
+    }
+
+
 def protocol_paired(df):
     """Matched-pair sensitivity: does the score move *because of* the injection?
 
@@ -261,7 +397,7 @@ def main():
                     help="score an external predictions file on the test split")
     ap.add_argument("--protocol", default="all",
                     choices=["all", "disjoint", "structural", "lofo", "evasion",
-                             "paired"])
+                             "paired", "calibration", "errors", "attribution"])
     args = ap.parse_args()
     try:
         sys.stdout.reconfigure(encoding="utf-8", errors="replace")
@@ -306,6 +442,36 @@ def main():
         for fam, v in sorted(lofo.items(), key=lambda kv: kv[1]["zeroshot_recall"]):
             print(f"     {fam:14s} recall {v['zeroshot_recall']*100:5.1f}  "
                   f"TPR@1%FPR {v['tpr_at_1pct_fpr']*100:5.1f}  (n={v['n_test']})")
+
+    if args.protocol in ("all", "calibration"):
+        cal = protocol_calibration(df)
+        results["calibration"] = cal
+        print("\n6. CALIBRATION  (is the score a probability?)")
+        print(f"     Brier {cal['brier']:.4f}   ECE {cal['ece']:.4f}   MCE {cal['mce']:.4f}")
+        print(f"     mean score {cal['mean_score']:.3f} vs base rate {cal['base_rate']:.3f}")
+
+    if args.protocol in ("all", "errors"):
+        er = protocol_error_analysis(df)
+        results["errors"] = er
+        print("\n7. ERROR ANALYSIS  (false positives by benign register)")
+        for cat, d in sorted(er["false_positives_by_benign_category"].items(),
+                             key=lambda kv: -kv[1]["fp_rate"]):
+            print(f"     {cat:<22} FP {d['false_positives']:>4}/{d['n']:<6} "
+                  f"({d['fp_rate']*100:5.2f}%)  mean score {d['mean_score']:.3f}")
+        worst = sorted(er["false_negatives_by_family"].items(),
+                       key=lambda kv: -kv[1]["fn_rate"])[:3]
+        print("     worst families by miss rate: " + ", ".join(
+            f"{k} {v_['fn_rate']*100:.1f}%" for k, v_ in worst))
+
+    if args.protocol in ("all", "attribution"):
+        at = protocol_attribution(df)
+        if at:
+            results["attribution"] = at
+            print("\n8. SPAN ATTRIBUTION  (does the score come from the injected span?)")
+            print(f"     score: attack {at['mean_score_attack']:.3f} -> span removed "
+                  f"{at['mean_score_span_removed']:.3f} -> twin {at['mean_score_twin']:.3f}")
+            print(f"     span attribution (median) {at['span_attribution_median']:.3f}"
+                  f"   localisation rate {at['localisation_rate']*100:.1f}%")
 
     if args.protocol in ("all", "paired"):
         pr = protocol_paired(df)
