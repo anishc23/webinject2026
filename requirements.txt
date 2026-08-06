@@ -15,3 +15,8 @@ xgboost>=2.0,<3
 pytest>=7.4
 # Optional: only needed for `python -m src.figures` (the paper figures)
 matplotlib>=3.7
+# Optional: `python -m src.model_zoo --tier deep|transformer`. The classical
+# tier needs nothing beyond scikit-learn and xgboost above. Apple silicon uses
+# the MPS backend automatically; elsewhere CUDA or CPU.
+torch>=2.2
+transformers>=4.40

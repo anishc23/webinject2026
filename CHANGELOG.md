@@ -1,5 +1,49 @@
 # Changelog
 
+## 4.2.0 - ten-model reference sweep
+
+### Added
+- **`src/model_zoo.py`**: four classical models (logistic regression, random
+  forest, linear SVM, XGBoost), three deep models (char-CNN, LSTM, BiLSTM) and
+  three transformers (DistilBERT, RoBERTa, DeBERTa-v3), all on the same splits,
+  each with the two ablations that decide whether a headline number means
+  anything -- carrier-only AUC and matched-pair accuracy. Blocking CI step for
+  the classical tier.
+
+  Nine of ten ran here. Trained on an identical 8,000-row stratified subsample
+  so the comparison is like-for-like:
+
+  | Model | Family | F1 | TPR@0.1%FPR | structural | paired | carrier AUC |
+  |---|---|--:|--:|--:|--:|--:|
+  | LogisticRegression | classical | 84.9 | 61.0 | 38.0 | 99.6 | 0.612 |
+  | RandomForest | classical | 83.1 | 38.8 | 22.9 | 99.1 | 0.603 |
+  | LinearSVM | classical | 87.9 | 68.7 | 41.2 | 99.8 | 0.615 |
+  | XGBoost | classical | 92.0 | 75.3 | 41.3 | 99.6 | 0.590 |
+  | CNN | deep | 89.7 | 74.1 | 42.6 | 92.6 | 0.546 |
+  | LSTM | deep | 86.1 | 31.2 | 23.6 | 91.8 | 0.518 |
+  | BiLSTM | deep | 85.4 | 32.4 | 39.7 | 91.6 | 0.518 |
+  | DistilBERT | transformer | 90.4 | 63.3 | 38.4 | 96.5 | 0.512 |
+  | RoBERTa | transformer | 94.8 | 81.8 | 72.2 | 97.9 | 0.499 |
+
+  Carrier-only AUC spans 0.499-0.615 across every family, with the transformers
+  at chance: no model recovers the label once injection syntax is deleted. On
+  v3.0.0 the same ablation gave 0.904. Paired accuracy is 91.6-99.8%, so every
+  model's decision tracks the injected span.
+
+  RoBERTa is the only model that substantially closes the structural gap (72.2
+  against 22.9-42.6), which is evidence that template-disjoint generalisation is
+  a model limitation rather than a property of the task.
+
+### Not done
+- **DeBERTa-v3 did not run.** Its disentangled attention diverges to NaN in fp32
+  on Apple's Metal backend, with and without gradient clipping at lr 1e-5; CPU
+  managed fewer than five optimiser steps in ten minutes. The harness selects
+  CUDA when present, so one command completes the set on a CUDA machine. The
+  blocker is recorded in `data/model_zoo_capped.json`, not dropped.
+- Run the tiers as separate processes: XGBoost's OpenMP pool and torch's MPS
+  backend deadlock in the same interpreter, so `--tier all` hangs on Apple
+  silicon after the classical tier. Documented in the module.
+
 ## 4.1.0 - character-level shortcut statistics, benign taxonomy, calibration,
 ##         error analysis and span attribution
 

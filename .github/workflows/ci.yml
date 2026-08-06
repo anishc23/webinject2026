@@ -53,6 +53,9 @@ jobs:
       - name: Single-character shortcut statistics
         run: python -m src.shortcut_stats
 
+      - name: Model zoo (classical tier, capped for CI time)
+        run: python -m src.model_zoo --tier classical --train-cap 4000 --protocols payload-disjoint --no-ablation
+
       - name: Tests
         run: pytest -q
 

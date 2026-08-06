@@ -69,6 +69,7 @@ python -m src.audit_gaps     # 5 construction checks (register, splits, sessions
 python -m src.baselines      # reference results table
 python -m src.evaluate       # generalisation protocols + prevalence correction
 python -m src.figures        # the eight paper figures, from the shipped result JSONs
+python -m src.model_zoo --tier classical   # 10-model sweep; see also --tier deep|transformer
 pytest -q                    # assert the shipped CSV passes every gate
 ```
 
@@ -158,6 +159,53 @@ Hard negatives are labelled by register in the shipped `benign_category` column
 — review, search, code, qa, encoded, log, markup — so false positives can be
 attributed to the kind of benign text that caused them, which no other
 web-attack corpus supports.
+
+## Ten reference detectors, one protocol
+
+A benchmark that reports one model cannot tell a reader whether a result is a
+property of the corpus or of the model. `python -m src.model_zoo` runs the same
+splits over four classical models, three deep models and three transformers,
+and — for every one of them — repeats the two ablations that matter:
+**carrier-only AUC** (delete all punctuation and every payload-pool word, then
+try to predict the label from the ordinary words left) and **paired accuracy**
+(does it score an attack above its own benign twin?).
+
+Trained on an identical 8,000-row stratified subsample so the comparison is
+like-for-like; a full-data transformer sweep is ~9 hours on Apple MPS.
+
+| Model | Family | F1 | TPR@0.1%FPR | structural | paired acc | carrier-only AUC |
+|---|---|--:|--:|--:|--:|--:|
+| LogisticRegression | classical | 84.9 | 61.0 | 38.0 | 99.6 | 0.612 |
+| RandomForest | classical | 83.1 | 38.8 | 22.9 | 99.1 | 0.603 |
+| LinearSVM | classical | 87.9 | 68.7 | 41.2 | 99.8 | 0.615 |
+| XGBoost | classical | 92.0 | 75.3 | 41.3 | 99.6 | 0.590 |
+| CNN | deep | 89.7 | 74.1 | 42.6 | 92.6 | 0.546 |
+| LSTM | deep | 86.1 | 31.2 | 23.6 | 91.8 | 0.518 |
+| BiLSTM | deep | 85.4 | 32.4 | 39.7 | 91.6 | 0.518 |
+| DistilBERT | transformer | 90.4 | 63.3 | 38.4 | 96.5 | 0.512 |
+| RoBERTa | transformer | 94.8 | 81.8 | 72.2 | 97.9 | 0.499 |
+| DeBERTa | transformer | — | — | — | — | — |
+
+Read the last two columns first. Carrier-only AUC runs **0.499–0.615** across all
+nine — no model can recover the label once the injection syntax is gone, and the
+transformers sit at chance. Paired accuracy is 91.6–99.8%: every model's decision
+tracks the injected span rather than the surrounding text. Those two numbers are
+what a headline F1 cannot tell you, and reporting them is the point of the corpus.
+
+RoBERTa is the only model that substantially closes the structural gap
+(72.2 against 22.9–42.6 for everything else) — evidence that template-disjoint
+generalisation is a model limitation rather than a property of the task.
+
+**DeBERTa-v3 did not run.** Its disentangled attention diverges to NaN in fp32 on
+Apple's Metal backend, with and without gradient clipping at lr 1e-5, and CPU
+managed fewer than five optimiser steps in ten minutes. The harness selects CUDA
+automatically, so `--tier transformer --models DeBERTa` completes the set on a
+CUDA machine. This is recorded in `data/model_zoo_capped.json` rather than
+quietly dropped.
+
+Uncapped numbers for the classical and deep tiers (43k training rows) are in
+`data/model_zoo.json`: the ordering is unchanged, and carrier-only AUC rises only
+to 0.569–0.662.
 
 ## Evaluation protocols
 
@@ -250,6 +298,7 @@ src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence corr
 src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate
 src/audit_gaps.py  five construction checks (register/splits/sessions/pairs/transfer); blocking in CI
 src/shortcut_stats.py  per-character shortcut statistics against CSIC-2010 and ECML/PKDD; blocking in CI
+src/model_zoo.py   ten detectors across classical / deep / transformer, same splits, same ablations
 src/figures.py     the eight paper figures; reads the result JSONs, never recomputes
 data/webinject2026.csv       the corpus (22 columns; see DATASHEET.md > Schema)
 data/webinject2026.parquet   same rows, typed columnar copy (NUL stripped in 25 rows; see DATASHEET.md > Limitations)

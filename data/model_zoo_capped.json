@@ -1,0 +1,273 @@
+{
+ "classical": {
+  "LogisticRegression": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.849009900990099,
+    "precision": 0.9876593994241053,
+    "recall": 0.7444961240310077,
+    "roc_auc": 0.9874444254758223,
+    "pr_auc": 0.9753340812888031,
+    "tpr_at_1pct_fpr": 0.8784496124031008,
+    "tpr_at_0.1pct_fpr": 0.6102325581395349,
+    "seconds": 5.3,
+    "paired_accuracy": 0.9962790697674418
+   },
+   "structural": {
+    "f1": 0.5923417556655379,
+    "precision": 0.9895561357702349,
+    "recall": 0.42267657992565055,
+    "roc_auc": 0.9571685688649878,
+    "pr_auc": 0.9117047954466188,
+    "tpr_at_1pct_fpr": 0.6304832713754647,
+    "tpr_at_0.1pct_fpr": 0.3802973977695167,
+    "seconds": 5.0,
+    "paired_accuracy": 0.9981412639405205
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.6122864862156154,
+    "f1": 0.18622589531680442
+   }
+  },
+  "RandomForest": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.8311550688802544,
+    "precision": 0.9655313910545753,
+    "recall": 0.7296124031007752,
+    "roc_auc": 0.9743074598495138,
+    "pr_auc": 0.9473389981937311,
+    "tpr_at_1pct_fpr": 0.7491472868217054,
+    "tpr_at_0.1pct_fpr": 0.38790697674418606,
+    "seconds": 7.5,
+    "paired_accuracy": 0.9906976744186047
+   },
+   "structural": {
+    "f1": 0.6211365902293121,
+    "precision": 0.9425113464447806,
+    "recall": 0.46319702602230484,
+    "roc_auc": 0.9257251195453654,
+    "pr_auc": 0.8525569305679929,
+    "tpr_at_1pct_fpr": 0.46356877323420076,
+    "tpr_at_0.1pct_fpr": 0.22899628252788104,
+    "seconds": 7.0,
+    "paired_accuracy": 0.9680297397769517
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.6034523855024236,
+    "f1": 0.2023089609675646
+   }
+  },
+  "LinearSVM": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.8788557642598656,
+    "precision": 0.9891388673390225,
+    "recall": 0.7906976744186046,
+    "roc_auc": 0.9916798187165944,
+    "pr_auc": 0.983909258856732,
+    "tpr_at_1pct_fpr": 0.9249612403100775,
+    "tpr_at_0.1pct_fpr": 0.6871317829457364,
+    "seconds": 5.1,
+    "paired_accuracy": 0.998139534883721
+   },
+   "structural": {
+    "f1": 0.6226415094339622,
+    "precision": 0.9910714285714286,
+    "recall": 0.45390334572490704,
+    "roc_auc": 0.973080972125237,
+    "pr_auc": 0.9414500894567374,
+    "tpr_at_1pct_fpr": 0.7074349442379182,
+    "tpr_at_0.1pct_fpr": 0.41226765799256504,
+    "seconds": 4.7,
+    "paired_accuracy": 0.9985130111524163
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.6147248431478967,
+    "f1": 0.19454395150179113
+   }
+  },
+  "XGBoost": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.9204564246733917,
+    "precision": 0.9861800141743444,
+    "recall": 0.8629457364341085,
+    "roc_auc": 0.9895946858413955,
+    "pr_auc": 0.9811041794100923,
+    "tpr_at_1pct_fpr": 0.9113178294573644,
+    "tpr_at_0.1pct_fpr": 0.7534883720930232,
+    "seconds": 79.7,
+    "paired_accuracy": 0.9956589147286822
+   },
+   "structural": {
+    "f1": 0.707056307911618,
+    "precision": 0.9795918367346939,
+    "recall": 0.5531598513011152,
+    "roc_auc": 0.9467718163651835,
+    "pr_auc": 0.9038201698215874,
+    "tpr_at_1pct_fpr": 0.6565055762081784,
+    "tpr_at_0.1pct_fpr": 0.41263940520446096,
+    "seconds": 79.3,
+    "paired_accuracy": 0.9814126394052045
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.5902656824499759,
+    "f1": 0.23840422975246334
+   }
+  }
+ },
+ "deep": {
+  "CNN": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.8969521044992743,
+    "precision": 0.9344758064516129,
+    "recall": 0.8623255813953489,
+    "roc_auc": 0.9799251560452291,
+    "pr_auc": 0.9616973624379492,
+    "tpr_at_1pct_fpr": 0.835968992248062,
+    "tpr_at_0.1pct_fpr": 0.7413953488372093,
+    "seconds": 2.7,
+    "paired_accuracy": 0.9255813953488372
+   },
+   "structural": {
+    "f1": 0.7553454872833671,
+    "precision": 0.9572162007986309,
+    "recall": 0.6237918215613383,
+    "roc_auc": 0.9644675245151302,
+    "pr_auc": 0.9229068602349714,
+    "tpr_at_1pct_fpr": 0.6301115241635687,
+    "tpr_at_0.1pct_fpr": 0.4263940520446097,
+    "seconds": 1.8,
+    "paired_accuracy": 0.9178438661710037
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.545520667446362,
+    "f1": 0.0018587360594795538
+   }
+  },
+  "LSTM": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.8613827993254637,
+    "precision": 0.944177449168207,
+    "recall": 0.7919379844961241,
+    "roc_auc": 0.9673996651896621,
+    "pr_auc": 0.9331931859042927,
+    "tpr_at_1pct_fpr": 0.7662015503875969,
+    "tpr_at_0.1pct_fpr": 0.31224806201550387,
+    "seconds": 3.8,
+    "paired_accuracy": 0.9178294573643411
+   },
+   "structural": {
+    "f1": 0.7225201072386059,
+    "precision": 0.9053751399776035,
+    "recall": 0.6011152416356877,
+    "roc_auc": 0.9405516906336895,
+    "pr_auc": 0.874273620813267,
+    "tpr_at_1pct_fpr": 0.5304832713754647,
+    "tpr_at_0.1pct_fpr": 0.23643122676579925,
+    "seconds": 3.5,
+    "paired_accuracy": 0.8936802973977696
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.5176330726704904,
+    "f1": 0.0
+   }
+  },
+  "BiLSTM": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.8536503683858004,
+    "precision": 0.9279213687659265,
+    "recall": 0.7903875968992248,
+    "roc_auc": 0.9638199294537122,
+    "pr_auc": 0.9252571634350708,
+    "tpr_at_1pct_fpr": 0.6409302325581395,
+    "tpr_at_0.1pct_fpr": 0.324031007751938,
+    "seconds": 7.4,
+    "paired_accuracy": 0.9156589147286822
+   },
+   "structural": {
+    "f1": 0.7037473485741221,
+    "precision": 0.9613650998068255,
+    "recall": 0.5550185873605948,
+    "roc_auc": 0.9447700894646512,
+    "pr_auc": 0.8852885236419572,
+    "tpr_at_1pct_fpr": 0.5669144981412639,
+    "tpr_at_0.1pct_fpr": 0.3973977695167286,
+    "seconds": 7.1,
+    "paired_accuracy": 0.912267657992565
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.5181378022274825,
+    "f1": 0.0
+   }
+  }
+ },
+ "transformer": {
+  "DistilBERT": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.9044790496066785,
+    "precision": 0.9377496671105193,
+    "recall": 0.8734883720930232,
+    "roc_auc": 0.9854381964067767,
+    "pr_auc": 0.9683638339517453,
+    "tpr_at_1pct_fpr": 0.8251162790697675,
+    "tpr_at_0.1pct_fpr": 0.6331782945736434,
+    "seconds": 179.0,
+    "paired_accuracy": 0.9652713178294574
+   },
+   "structural": {
+    "f1": 0.8665785997357992,
+    "precision": 0.8800306630893062,
+    "recall": 0.8535315985130112,
+    "roc_auc": 0.9670919207518778,
+    "pr_auc": 0.934298254619848,
+    "tpr_at_1pct_fpr": 0.6739776951672862,
+    "tpr_at_0.1pct_fpr": 0.38401486988847583,
+    "seconds": 183.8,
+    "paired_accuracy": 0.9412639405204462
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.5122877602275556,
+    "f1": 0.0
+   }
+  },
+  "RoBERTa": {
+   "_train_cap": 8000,
+   "payload-disjoint": {
+    "f1": 0.9476807746368889,
+    "precision": 0.9546884833228445,
+    "recall": 0.9407751937984496,
+    "roc_auc": 0.9908587435014774,
+    "pr_auc": 0.9833310348675641,
+    "tpr_at_1pct_fpr": 0.9286821705426357,
+    "tpr_at_0.1pct_fpr": 0.8182945736434108,
+    "seconds": 439.1,
+    "paired_accuracy": 0.9786046511627907
+   },
+   "structural": {
+    "f1": 0.9210033695245227,
+    "precision": 0.9276018099547512,
+    "recall": 0.9144981412639405,
+    "roc_auc": 0.9844736623523127,
+    "pr_auc": 0.972958958373925,
+    "tpr_at_1pct_fpr": 0.8609665427509293,
+    "tpr_at_0.1pct_fpr": 0.7223048327137547,
+    "seconds": 408.0,
+    "paired_accuracy": 0.9650557620817843
+   },
+   "ablation_carrier_only": {
+    "roc_auc": 0.49920690208708635,
+    "f1": 0.0
+   }
+  },
+  "DeBERTa": {
+   "error": "non-finite scores on mps",
+   "_note": "DeBERTa-v3's disentangled attention diverges to NaN in fp32 on Apple's Metal backend, with and without gradient clipping at lr 1e-5. CPU is not a workaround here: <5 optimiser steps in 10 minutes. Run on CUDA with `python -m src.model_zoo --tier transformer --models DeBERTa --train-cap 8000`; the harness selects CUDA automatically when present."
+  }
+ }
+}
