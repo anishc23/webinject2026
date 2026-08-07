@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use this corpus, please cite it as below."
 title: "WebInject2026: A Leakage-Audited Corpus for Web Injection Detection"
-version: 4.2.0
+version: 4.3.0
 date-released: 2026-08-02
 type: dataset
 license: CC-BY-4.0

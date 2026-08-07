@@ -260,7 +260,14 @@ def protocol_error_analysis(df):
 
     fp_by_cat = {}
     ben = t[t.label == 0]
-    for cat, grp in ben.groupby(ben.benign_category.replace("", "(routine/ambiguous)")):
+    # Rows with no carrier category are routine or ambiguous, and those two are
+    # not alike: `routine` is ordinary traffic, `ambiguous` is benign text built
+    # to contain literal attack syntax and is the corpus's declared error floor.
+    # Lumping them hid every false positive in one row labelled
+    # `(routine/ambiguous)`, which flattered the per-category claim beside it.
+    cat_col = ben.benign_category.where(ben.benign_category.astype(str) != "",
+                                        "(" + ben.tier.astype(str) + ")")
+    for cat, grp in ben.groupby(cat_col):
         fp_by_cat[str(cat)] = {
             "n": int(len(grp)),
             "false_positives": int((grp.pred == 1).sum()),

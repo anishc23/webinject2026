@@ -32,6 +32,7 @@ to make unnecessary.
 """
 
 import argparse
+import hashlib
 import json
 import os
 import re
@@ -348,6 +349,20 @@ def evaluate(df, name, fn, protocols=PROTOCOLS, ablate=True, train_cap=None):
     return out
 
 
+def corpus_id(df):
+    """A fingerprint of the corpus a run was scored against.
+
+    The tiers run as separate processes and accumulate into one JSON, which
+    makes it easy to leave a row in the table that was measured against an
+    earlier build -- and a table mixing two corpora is worse than a table
+    missing a row, because nothing in it looks wrong.
+    """
+    h = hashlib.sha256()
+    for col in ("payload", "label", "split", "split_struct"):
+        h.update(pd.util.hash_pandas_object(df[col], index=False).values.tobytes())
+    return f"{len(df)}rows-{h.hexdigest()[:12]}"
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--csv", default=os.path.join(DATA, "webinject2026.csv"))
@@ -372,6 +387,26 @@ def main():
     results = {}
     if args.json and os.path.exists(args.json):
         results = json.load(open(args.json))       # accumulate across tiers
+
+    cid = corpus_id(df)
+    prior = results.get("_corpus")
+    has_rows = any(not k.startswith("_") and v for k, v in results.items())
+    # A missing fingerprint means the file predates fingerprinting, so those rows
+    # have unknown provenance -- which is the case worth flagging, not the one to
+    # wave through. Anything this run rewrites loses the mark; anything it does
+    # not carries it into the JSON a reader will quote from.
+    if has_rows and prior != cid:
+        was = prior or "an unrecorded build"
+        print(f"WARNING: {os.path.basename(args.json)} holds results for {was}, "
+              f"but this run is against {cid}.")
+        print("         Pre-existing rows are marked _stale. Re-run every tier "
+              "against one corpus before publishing a table.")
+        for tier_name, models in results.items():
+            if tier_name.startswith("_"):
+                continue
+            for rec in models.values():
+                rec.setdefault("_stale", was)
+    results["_corpus"] = cid
 
     for tier in tiers:
         print("=" * 100)

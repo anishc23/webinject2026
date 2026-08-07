@@ -53,6 +53,15 @@ jobs:
       - name: Single-character shortcut statistics
         run: python -m src.shortcut_stats
 
+      # Table 1. Advisory, not blocking: it trains six models over three
+      # corpora and its headline is a statement about CSIC-2010 and
+      # ECML/PKDD-2007, which this repository does not control. It runs here so
+      # a rebuild that quietly makes this corpus separable without its
+      # injections shows up in the log.
+      - name: Syntax/vocabulary ablation (Table 1)
+        continue-on-error: true
+        run: python -m src.syntax_ablation --fast
+
       - name: Model zoo (classical tier, capped for CI time)
         run: python -m src.model_zoo --tier classical --train-cap 4000 --protocols payload-disjoint --no-ablation
 

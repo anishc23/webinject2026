@@ -1,11 +1,11 @@
-"""Construction checks: four properties `src.validate` does not test.
+"""Construction checks: five properties `src.validate` does not test.
 
     python -m src.audit_gaps
 
-Four properties the 25-check gate does not test, found by an external audit of
-v3.0.0, where all four FAILED. v4.0.0 fixes them by construction and this module
+Five properties the 25-check gate does not test. Four came from an external
+audit of v3.0.0, where all four FAILED; `transfer_ranking` was added in v4.1.0. v4.0.0 fixes them by construction and this module
 is now a blocking CI step alongside `src.validate` -- so the gate is effectively
-29 checks, and a regression in any of these fails the build.
+30 checks (25 + 5), and a regression in any of these fails the build.
 
   lexical_register_leak  attack and benign carriers are drawn from different
                          vocabularies, so the label is recoverable from ordinary
@@ -17,7 +17,8 @@ is now a blocking CI step alongside `src.validate` -- so the gate is effectively
                          column cannot support the sequence modelling the
                          datasheet advertises
   pair_integrity         every counterfactual pair is complete, sits wholly in
-                         one split, and matches its twin on length
+                         one split, and matches its twin on both length and
+                         carrier vocabulary
   transfer_ranking       cross-corpus transfer reported as F1 at a fixed
                          threshold hides threshold collapse; measure AUC/PR-AUC
                          and show the predicted-positive rate
@@ -46,9 +47,11 @@ WORD = re.compile(r"[A-Za-z]{2,}")
 
 # Thresholds are the values v4.0.0 must hold, not the values v3.0.0 had.
 REGISTER_AUC_CEILING = 0.75
+MATCHED_AUC_CEILING = 0.55
 STRUCT_SPREAD_MAX = 0.05
 SESSION_RATIO_FLOOR = 1.15
 PAIR_LEN_PARITY_FLOOR = 0.75
+PAIR_WORD_PARITY_FLOOR = 0.95
 
 _results = []
 
@@ -115,16 +118,41 @@ def check_lexical_register_leak(df):
     sh = toks.map(lambda ws: " ".join(w for w in ws if w in shared))
     auc_shared, _ = _fit_auc(sh[tr], df.loc[tr, "label"], sh[te], df.loc[te, "label"])
 
-    # the tier the corpus claims as its hard case
-    hn = df[(df["label"] == 1) | (df["tier"] == "hard_negative")]
-    hs = sh.loc[hn.index]
-    h_tr, h_te = hn["split"] == "train", hn["split"] == "test"
-    auc_hn, _ = _fit_auc(hs[h_tr.values], hn.loc[h_tr, "label"],
-                         hs[h_te.values], hn.loc[h_te, "label"])
+    def _sub(mask):
+        s = df[mask]
+        t = sh.loc[s.index]
+        a, b = s["split"] == "train", s["split"] == "test"
+        return _fit_auc(t[a.values], s.loc[a, "label"],
+                        t[b.values], s.loc[b, "label"])[0]
 
-    report("lexical_register_leak", auc_shared < REGISTER_AUC_CEILING,
-           f"carrier AUC {auc:.3f} (F1 {f1:.3f}); shared-vocab only {auc_shared:.3f}; "
-           f"vs hard_negative {auc_hn:.3f} (ceiling {REGISTER_AUC_CEILING})")
+    # The tier the corpus claims as its hard case, measured two ways.
+    #
+    # Unmatched -- every attack against every hard negative -- has run at 0.82-0.84
+    # since v4.0.0, above the ceiling, and was printed but not gated. An external
+    # review fairly called that a check reporting its own failure. It is neither a
+    # pass nor a leak: it is confounded by composition. Only 40% of attacks are
+    # twinned with a hard negative; the other 60% are twinned with routine rows
+    # and carry routine carrier text. So the comparison is largely prose against
+    # non-prose, and a model separating those has learned the tier mixture, not
+    # the label.
+    #
+    # Matched -- each hard-negative attack against *its own twin* -- removes that
+    # confound by construction, because both rows carry the identical carrier
+    # text. That is the number the counterfactual claim rests on, so that is the
+    # number now gated, and it is gated far tighter than 0.75.
+    hn_unmatched = _sub((df["label"] == 1) | (df["tier"] == "hard_negative"))
+    twin_tier = df["pair_id"].map(
+        df[(df["label"] == 0) & (df["pair_id"].astype(str) != "")]
+        .set_index("pair_id")["tier"])
+    hn_matched = _sub((df["pair_id"].astype(str) != "") &
+                      (twin_tier == "hard_negative"))
+
+    ok = auc_shared < REGISTER_AUC_CEILING and hn_matched < MATCHED_AUC_CEILING
+    report("lexical_register_leak", ok,
+           f"carrier AUC {auc:.3f} (F1 {f1:.3f}); shared-vocab only {auc_shared:.3f} "
+           f"(ceiling {REGISTER_AUC_CEILING}); hard_negative matched pairs "
+           f"{hn_matched:.3f} (ceiling {MATCHED_AUC_CEILING}), unmatched "
+           f"{hn_unmatched:.3f} -- confounded by tier mixture, see docstring")
 
 
 def check_struct_split_balance(df):
@@ -208,10 +236,27 @@ def check_pair_integrity(df):
     # repair that keeps a seam from forming `--` can shave a character, and a
     # one-character difference is not a signal any model can use.
     equal = float(((piv[1] - piv[0]).abs() <= 1).mean()) if not piv.empty else 0.0
-    ok = orphans == 0 and spanning == 0 and equal >= PAIR_LEN_PARITY_FLOOR
+
+    # Length parity alone is not the counterfactual claim. v4.2.0 held 80% length
+    # parity while the benign twin carried a median of two more carrier words
+    # than its attack -- so a carrier-only model still ranked the attack above
+    # its own twin in only 73.0% of pairs, and "the only difference within a pair
+    # is the injected span" was falsifiable in ten lines. Vocabulary parity is
+    # the check that closes that, and it is gated, not merely printed.
+    wd = pr.assign(_w=_carrier_tokens(pr).map(len))
+    wpiv = wd.pivot_table(index="pair_id", columns="label", values="_w",
+                          aggfunc="first").dropna()
+    dw = (wpiv[1] - wpiv[0]) if not wpiv.empty else pd.Series(dtype=float)
+    zero = float((dw == 0).mean()) if not dw.empty else 0.0
+    fewer = float((dw < 0).mean()) if not dw.empty else 0.0
+
+    ok = (orphans == 0 and spanning == 0 and equal >= PAIR_LEN_PARITY_FLOOR
+          and zero >= PAIR_WORD_PARITY_FLOOR)
     report("pair_integrity", ok,
            f"{complete:,} complete pairs, {orphans} orphaned, {spanning} spanning a split; "
-           f"within-pair length parity (+/-1 char) {equal*100:.1f}% (floor {PAIR_LEN_PARITY_FLOOR*100:.0f}%)")
+           f"length parity (+/-1 char) {equal*100:.1f}% (floor {PAIR_LEN_PARITY_FLOOR*100:.0f}%); "
+           f"carrier-word delta zero {zero*100:.1f}% (floor {PAIR_WORD_PARITY_FLOOR*100:.0f}%), "
+           f"attack word-poorer in {fewer*100:.1f}%")
 
 
 def check_transfer_ranking(df):

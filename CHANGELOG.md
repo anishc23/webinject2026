@@ -1,5 +1,127 @@
 # Changelog
 
+## 4.3.0 - the pair is a real counterfactual; Table 1 tests the headline claim
+
+Three defects found by an external review of 4.2.0, all confirmed and all fixed
+by construction. Corpus rebuilt.
+
+### Fixed
+- **The benign twin carried words its attack did not, so the pair was not a
+  counterfactual.** 4.2.0's changelog said the mirror tokens were
+  "digit/punctuation only (`%25`, `/**/`, `[1]`, `1|2`)". That was true of the
+  token list and false of the span built from it: after the character-profile
+  markers, `_decoy_span` padded the rest of the length budget with ordinary
+  filler from `V.value_for`. Measured on the shipped 4.2.0 corpus:
+
+  | | 4.2.0 | 4.3.0 |
+  |---|--:|--:|
+  | within-pair carrier-word delta is zero | 19.3% | **99.6%** |
+  | attack word-poorer than its own twin | 77.5% | **0.2%** |
+  | within-pair carrier-only AUC | 0.744 | **0.502** |
+  | carrier-only model ranks attack above twin (tie-corrected) | 73.0% | **50.7%** |
+
+  The span now echoes the payload's own non-pool alphabetic tokens rather than
+  inventing new ones, and pads with digits and punctuation only. Three further
+  causes of drift were found by measuring instead of assuming, and each is fixed
+  at its root:
+
+  - *Encoding.* `normalise` unquotes every record once. A query-placed span is
+    quoted on assembly so that decode is undone, but a JSON, multipart or header
+    span is stored raw and so reaches the payload column decoded -- `%3Csvg`
+    arriving as `<svg`. The echo now matches whichever form the audit will see.
+  - *Seam fusion.* A span is appended with no separator, so its edge run of
+    letters fuses with the carrier's adjacent word into a new token, and a fused
+    token counts even when the run alone is pool vocabulary the audit strips
+    (`home.php` + `http://…` = `phphttp`). That was 618 of the last 647
+    mismatches. The span now reproduces the payload's edge run verbatim.
+  - *Single letters.* Deleting punctuation and digits turns `%3A` into a bare
+    `A`. Those stray capitals were 99% of what still separated a pair once the
+    injection was deleted outright. The echo now covers one-letter runs too.
+
+  Two entries in the word-free vocabularies did contain a letter -- `--x`, in
+  both `_PAD_TOKENS` and `_CHAR_CARRIERS` -- which made `x` benign-exclusive
+  (5,061 occurrences against none). Now `--7`. A test asserts both lists are
+  letter-free, so the 4.2.0 claim cannot become false again unnoticed.
+
+  New blocking gate: `pair_integrity` requires the within-pair carrier-word
+  delta to be zero for **>=95%** of pairs, alongside the existing length parity.
+
+- **`benign_category` was moved to the attack twin, not copied.** All 6,343
+  paired hard negatives shipped with a blank category: the attack inherited it
+  and the benign row lost it. The error-analysis table therefore bucketed a
+  third of the tier -- including every false positive -- into
+  `(routine/ambiguous)`, so "every hard-negative category is at 0.00% false
+  positives" was computed over 63% of the tier. Both halves now carry it; all
+  17,000 hard negatives are categorised, and the test split holds 3,438 of them
+  against roughly 1,247 before.
+
+- **`lexical_register_leak` printed a sub-metric above its own ceiling and
+  passed.** `vs hard_negative` ran 0.82-0.84 against a stated ceiling of 0.75
+  and was not gated -- fairly described in review as a check reporting its own
+  failure. It is neither a pass nor a leak but a confound: only 40% of attacks
+  are twinned with a hard negative, so the comparison is largely prose against
+  non-prose. The matched version -- each hard-negative attack against *its own
+  twin* -- is **0.500**, and that is what is now gated, at a 0.55 ceiling. The
+  unmatched figure is still printed, with its explanation.
+
+### Added
+- **`src/syntax_ablation.py` -- Table 1.** The corpus's load-bearing claim is
+  that ~99% detection scores on existing corpora are driven by artefacts rather
+  than by the injection. `src.shortcut_stats` argues that one character at a
+  time; this argues it with the whole model. Delete the injection -- every
+  non-letter character, then every word in the payload pool -- retrain, and see
+  what is left. Same model, same features, same split, one deletion list applied
+  to all three corpora.
+
+  | | full F1 | full AUC | -syntax -vocab F1 | AUC | AUC kept |
+  |---|--:|--:|--:|--:|--:|
+  | CSIC-2010 | 0.971 | 0.995 | 0.873 | 0.965 | **94%** |
+  | ECML/PKDD-2007 | 0.816 | 0.881 | 0.587 | 0.745 | 64% |
+  | **WebInject2026** | 0.950 | 0.997 | **0.151** | **0.608** | **22%** |
+
+  CSIC-2010 keeps 94% of its separation above chance with nothing recognisable
+  as an attack left in the data. On the matched-pair version, which only this
+  corpus supports, a model with the injection deleted scores **51.8% with 94.1%
+  of pairs tied** -- chance is 50%.
+
+  Deleting punctuation *alone* is reported but is not the experiment: it leaves
+  `<script>alert(1)</script>` as `script alert script`, all three corpora keep
+  ~90%, and quoting that number alone would mislead.
+
+- **Corpus fingerprinting in `src/model_zoo.py`.** The tiers run as separate
+  processes and accumulate into one JSON, so a row measured against an earlier
+  build could sit in a published table with nothing looking wrong. Each run now
+  records a corpus id and marks pre-existing rows `_stale` when it differs.
+
+### Changed
+- **The model zoo publishes both training budgets, and the structural claim is
+  withdrawn.** 4.2.0 published one table, trained on an 8,000-row subsample --
+  13% of the corpus -- and concluded from it that "RoBERTa is the only model
+  that substantially closes the structural gap (72.2 against 22.9-42.6)". That
+  compared a transformer against classical models given 13% of the data. Both
+  tables now ship. At the cap, the best classical or deep model reaches 49.7 on
+  structural TPR@0.1%FPR; at full data LinearSVM reaches **67.7** and the
+  char-CNN **65.2** -- the same models, 18-20 points better, and within 5-7
+  points of RoBERTa's capped 72.2.
+
+  What the pair of tables supports is that the transformer was the most
+  *sample-efficient* model at a fixed budget. It does not support the claim that
+  structural generalisation is a model limitation rather than a property of the
+  task, and that sentence is gone.
+
+### Not done
+- **XGBoost has no full-data row.** `bad_malloc`, needing 12.3 GB on a 15.3 GB
+  machine (200k char n-gram features x 43k rows, `tree_method=hist`), reproduced
+  with nothing else running. Lowering `max_features` for one model would break
+  the like-for-like feature setup, so the row is reported missing. The capped
+  run completes.
+- **The transformer tier was not re-run against this build.** DistilBERT and
+  RoBERTa were measured on the 4.2.0 corpus, and 4.3.0 rebuilt every benign
+  twin, so those numbers are not comparable to the rows beside them. They are
+  retained in `data/model_zoo_capped.json` flagged `_stale` and excluded from
+  the published tables; completing them needs `transformers` and a CUDA device.
+  This is the flagging mechanism above doing its job on its first real case.
+
 ## 4.2.0 - ten-model reference sweep
 
 ### Added
@@ -71,6 +193,11 @@ Corpus rebuilt; schema gains `benign_category`.
   Word-bearing carriers were tried first and reintroduced the register leak,
   because words present in benign rows and absent from payloads are exactly the
   signal pairing exists to remove.
+
+  > **Corrected in 4.3.0.** That last paragraph was true of the token list and
+  > false of the span built from it — the rest of the length budget was filled
+  > with ordinary words from `V.value_for`, and two tokens (`--x`) carried a
+  > letter. See the 4.3.0 entry for the measurements and the fix.
 
 ### Added
 - **`src/shortcut_stats.py`**, a blocking CI step. Reports every statistic

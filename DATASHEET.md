@@ -53,7 +53,7 @@ One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack. Every attack r
 | `split` | `train`/`val`/`test` — **payload-disjoint, family/tier-stratified** (primary) |
 | `split_struct` | `train`/`val`/`test` — **template-disjoint** (structural generalisation) |
 | `template` | Attack template the payload was generated from (`sqli:union`, …); `benign:*` / `ambiguous` for benign |
-| `benign_category` | Register of the hard-negative carrier: `review`, `search`, `code`, `qa`, `encoded`, `log`, `markup`. An attack inherits its twin's, so a miss is attributable to the benign text it hid in. Empty for routine/ambiguous rows |
+| `benign_category` | Register of the hard-negative carrier: `review`, `search`, `code`, `qa`, `encoded`, `log`, `markup`. Both halves of a pair carry it — the attack inherits its twin's, so a miss is attributable to the benign text it hid in, and the twin keeps its own so a false positive is too. Empty only for routine/ambiguous rows. (Before 4.3.0 it was *moved* to the attack, leaving all 6,343 paired hard negatives blank.) |
 | `pair_id` | Counterfactual pair id. Each attack row and its benign twin share one: same endpoint, carrier values, headers and boundary, differing only by the injected span. Empty for unpaired benign rows |
 | `group` | Split group; `split` never shares one. Attack = canonical-payload hash; ambiguous = `ambigD`/`ambigV` (frame × specimen) core; hard_negative = `benH` core; routine = per-row |
 
@@ -226,7 +226,7 @@ the raw `path`/`query`/`body`/`headers`).
 - **Offline release contains no server responses or timing**, so response-based
   detectors are out of scope for synthetic rows; the `status` column is populated
   only under live capture.
-- **Family imbalance** (crlf 164 … xss 3,601) mirrors real-world prevalence but
+- **Family imbalance** (crlf 194 … xss 3,584) mirrors real-world prevalence but
   means small-family metrics have wider CIs; the disjoint test still holds ≥11
   payload groups per family, and `baselines.py` reports group-level bootstrap CIs.
 - **Seed payload set is finite**; place PayloadsAllTheThings under `data/patt/`
@@ -235,30 +235,35 @@ the raw `path`/`query`/`body`/`headers`).
   `data/patt/` present draws from a larger pool and will not reproduce the
   published CSV byte-for-byte.
 - **Single characters carry a residual, measured association.** `%` sits at
-  18.2% of benign rows against
+  17.4% of benign rows against
   31.2% of attacks (Cramer's V
-  0.139). This is deliberately *not* driven to zero: injection genuinely uses
+  0.149). This is deliberately *not* driven to zero: injection genuinely uses
   punctuation and the `routine` tier is deliberately ordinary alphanumeric
   traffic, so an exact match would falsify the benign distribution. What is
   enforced by `src.shortcut_stats` in CI is that no single character yields a
-  usable detector (best AUC 0.565, ceiling 0.60) and that every association is
+  usable detector (best AUC 0.569, ceiling 0.60) and that every association is
   smaller than in CSIC-2010 (0.316) or ECML/PKDD (0.411). v4.0.0 had this at
   0.318 -- on par with CSIC -- and the claim that no character predicted the
   label was simply wrong until 4.1.0 measured it.
 - **Closed in v4.0.0, and now enforced.** An external audit of v3.0.0 found four
   properties the 25-check gate did not test; all four reproduced. They are fixed
   by construction and `python -m src.audit_gaps` is a blocking CI step, so the
-  gate is effectively 29 checks. What was wrong, and what it is now:
+  gate is effectively 30 checks. What was wrong, and what it is now:
   - **Lexical register leak.** With all punctuation and every payload-pool word
     deleted, v3.0.0's label was recoverable from ordinary vocabulary at AUC
     0.904 (0.990 against the `hard_negative` tier). Attacks were generated
     independently with routine-tier filler while hard negatives carried prose
     cores, so carrier register encoded the tier and the tier encoded the label.
     v4 builds each attack as the counterfactual twin of a benign row; carrier
-    AUC is now **0.608**. The residual 0.818 against `hard_negative` alone is
-    tier composition, not label signal: the two benign tiers are separable from
-    each other at AUC 1.000 with no label involved, and attacks are a mixture of
-    both carrier types.
+    AUC is now **0.568**. The residual 0.824 against `hard_negative` alone is
+    tier composition, not label signal: only 40% of attacks are twinned with a
+    hard negative, so that comparison is largely prose against non-prose. Since
+    4.3.0 the check gates the *matched* version instead -- each hard-negative
+    attack against its own twin, where both rows carry identical carrier text --
+    which is **0.500**. The unmatched figure is still printed beside it.
+    Until 4.3.0 the unmatched figure was printed against a 0.75 ceiling it
+    exceeded, and nothing failed; an external review rightly called that a check
+    reporting its own failure.
   - **`split_struct` imbalance.** `nosqli` and `ssrf` had no structural val or
     test rows and prevalence spread was 0.134. Splits are now decided before
     generation; spread is 0.007 and every family is in structural train and

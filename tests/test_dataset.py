@@ -145,3 +145,60 @@ def test_manifest_matches_csv(df):
 
 def test_labels_binary(df):
     assert set(df.label.unique()) <= {0, 1}
+
+
+# --------------------------------------------------- counterfactual pairing --
+# The paired protocol asserts one thing: within a pair, the only difference is
+# the injected span. Every claim in the attribution section rests on it, and an
+# external review falsified it in ten lines against v4.2.0 -- the benign twin
+# carried a median of two more carrier words than its own attack, because the
+# decoy span was padded with ordinary filler. These are the regression guards.
+
+def test_mirror_vocabularies_are_word_free(df):
+    """The tokens a twin is padded with must contain no letters at all.
+
+    v4.2.0's changelog claimed this ("digit/punctuation only") while the builder
+    filled the remaining span with `V.value_for`, and both `--x` entries slipped
+    a letter through. Assert it rather than claiming it.
+    """
+    import re
+
+    from src import build as B
+    for name, toks in (("_PAD_TOKENS", B._PAD_TOKENS),
+                       ("_CHAR_CARRIERS", [t for v in B._CHAR_CARRIERS.values()
+                                           for t in v])):
+        bad = [t for t in toks if re.search(r"[A-Za-z]", t)]
+        assert not bad, f"{name} carries letters: {bad}"
+
+
+def test_pair_carrier_word_parity(df):
+    """Within a pair, both rows must carry the same count of carrier words.
+
+    Carrier words are alphabetic tokens that do not occur in the payload pool --
+    the same definition `audit_gaps` and `model_zoo` use. A pair that fails this
+    differs by something other than the injected span.
+    """
+    import re
+
+    pool = json.load(open(os.path.join(ROOT, "corpus", "payloads.json")))
+    word = re.compile(r"[A-Za-z]{2,}")
+    atk = {w.lower() for ps in pool.values() for p in ps for w in word.findall(p)}
+
+    pr = df[df.pair_id.astype(str) != ""]
+    n = pr.payload.map(lambda s: len([w for w in (t.lower() for t in
+                                                  word.findall(str(s)))
+                                      if w not in atk]))
+    piv = pr.assign(_n=n).pivot_table(index="pair_id", columns="label",
+                                      values="_n", aggfunc="first").dropna()
+    zero = float((piv[1] == piv[0]).mean())
+    assert zero >= 0.95, f"carrier-word delta is zero in only {zero:.1%} of pairs"
+
+
+def test_benign_category_is_shared_not_moved(df):
+    """Both halves of a hard-negative pair carry the category, not just the
+    attack. v4.1.0 set it on the attack alone, which left 6,343 hard negatives
+    uncategorised and silently narrowed the error-analysis table to 63% of the
+    tier."""
+    hn = df[df.tier == "hard_negative"]
+    blank = int((hn.benign_category.astype(str) == "").sum())
+    assert blank == 0, f"{blank:,} hard negatives have no benign_category"

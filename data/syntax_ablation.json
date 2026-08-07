@@ -1,0 +1,81 @@
+[
+ {
+  "corpus": "CSIC-2010",
+  "n": 96851,
+  "base_rate": 0.25659001972101475,
+  "vocab_size": 392,
+  "full": {
+   "f1": 0.9709500671973534,
+   "roc_auc": 0.9949719426202379,
+   "chars_deleted": 0.0
+  },
+  "syntax_deleted": {
+   "f1": 0.9047773805654858,
+   "roc_auc": 0.9769069594289577,
+   "chars_deleted": 0.13254196622992176,
+   "auc_retained": 0.9635030157555002,
+   "f1_retained": 0.9318474874584695
+  },
+  "syntax_and_vocab_deleted": {
+   "f1": 0.8730017761989343,
+   "roc_auc": 0.9645494521185861,
+   "chars_deleted": 0.20227416441829715,
+   "auc_retained": 0.9385369394058904,
+   "f1_retained": 0.8991211862406613
+  }
+ },
+ {
+  "corpus": "ECML/PKDD-2007",
+  "n": 48991,
+  "base_rate": 0.2980751566614276,
+  "vocab_size": 392,
+  "full": {
+   "f1": 0.8155497064183033,
+   "roc_auc": 0.8814239746891065,
+   "chars_deleted": 0.0
+  },
+  "syntax_deleted": {
+   "f1": 0.7439752832131823,
+   "roc_auc": 0.8391348746615215,
+   "chars_deleted": 0.11488464730649195,
+   "auc_retained": 0.8891283641463432,
+   "f1_retained": 0.91223781623384
+  },
+  "syntax_and_vocab_deleted": {
+   "f1": 0.5869373345101501,
+   "roc_auc": 0.7451458485290512,
+   "chars_deleted": 0.14983443851746825,
+   "auc_retained": 0.6427122173661638,
+   "f1_retained": 0.7196830921414179
+  }
+ },
+ {
+  "corpus": "WebInject2026",
+  "n": 61400,
+  "base_rate": 0.26058631921824105,
+  "vocab_size": 392,
+  "full": {
+   "f1": 0.9504459861248761,
+   "roc_auc": 0.9973189735982029,
+   "chars_deleted": 0.0
+  },
+  "syntax_deleted": {
+   "f1": 0.884231874260605,
+   "roc_auc": 0.9703619277342125,
+   "chars_deleted": 0.2152316604245036,
+   "auc_retained": 0.945795259591745,
+   "f1_retained": 0.9303336403847242,
+   "paired_accuracy": 0.9653261557948069,
+   "paired_ties": 0.05098163394553515
+  },
+  "syntax_and_vocab_deleted": {
+   "f1": 0.15093318907222072,
+   "roc_auc": 0.6082805468340817,
+   "chars_deleted": 0.4386383534651592,
+   "auc_retained": 0.2177285657344826,
+   "f1_retained": 0.1588024898580508,
+   "paired_accuracy": 0.5175744141861938,
+   "paired_ties": 0.941418619379354
+  }
+ }
+]

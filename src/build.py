@@ -302,12 +302,35 @@ _CHAR_CARRIERS = {
     "&": ["1&2", "&&"],
     "=": ["1=2", "=="],
     ":": ["10:30", "1:2"],
-    "-": ["1-2", "--x"],
+    # `--x` was the only carrier here holding a letter, which made `x` a
+    # benign-exclusive token once syntax deletion stripped the dashes around it
+    # (5,029 occurrences against none on the attack side). Digits carry the same
+    # character profile and leak nothing.
+    "-": ["1-2", "--7"],
     "/": ["1/2", "//"],
 }
 
 _MARKER_PROFILES = []
 _MIRROR_CHARS = "%*<>'\"$(){}[]|\\#`"
+
+# Word-free padding. Every token is digits and punctuation only, so padding a
+# decoy span to its twin's length can never add an alphabetic token -- which is
+# the whole point of `_decoy_span`.
+_PAD_TOKENS = ["1", "12", "7", "42", "0", "99", "3", "2024", "1.5", "10:30",
+               "1-2", "1/2", "(1)", "[2]", "{}", "==", "..", "--7", "+1", "0.0"]
+
+_WORD_RE = re.compile(r"[A-Za-z]{2,}")   # what the register audits count
+_ECHO_RE = re.compile(r"[A-Za-z]+")      # what a twin has to reproduce
+_POOL_WORDS = set()
+
+
+def _words(text):
+    """Alphabetic tokens the register audit would count, minus payload-pool
+    vocabulary. This is deliberately the same rule `audit_gaps._carrier_tokens`
+    and `model_zoo.carrier_text` apply, so what the builder balances is exactly
+    what the audit measures."""
+    return [w for w in (t.lower() for t in _WORD_RE.findall(str(text)))
+            if w not in _POOL_WORDS]
 
 
 
@@ -354,6 +377,99 @@ def _mirror_charset(payload, rng):
             have += tok.count(ch)
     rng.shuffle(out)
     return out
+
+
+def _decoy_span(payload, rng, prefix=False, decoded=False):
+    """The benign twin's span: same length, same character profile, same carrier
+    vocabulary as `payload`, and nothing else.
+
+    v4.2.0 built this as mirror punctuation followed by ordinary filler drawn
+    from `V.value_for`, truncated to the payload's length. That matched length
+    and character profile but not *vocabulary*: the filler contributed real
+    words the payload did not, so within a pair the benign twin held a median of
+    two more carrier words than its attack, a carrier-only model ranked the
+    attack above its own twin in only 73.0% of pairs, and 77.5% of attacks were
+    word-poorer than their twins. The pair's difference was therefore not the
+    injected span alone, which is the one thing the paired protocol asserts.
+
+    So the span echoes the payload's own non-pool alphabetic tokens instead of
+    inventing new ones, and pads with `_PAD_TOKENS` -- digits and punctuation
+    only -- to reach length. Two consequences, both wanted: the within-pair
+    carrier-word delta is zero by construction, and no alphabetic token is
+    class-exclusive, because whatever residue an encoding evasion leaves
+    (`%3Cimg` -> `cimg`) now appears on the benign side of the same pair.
+    """
+    span_len = len(payload)
+
+    # Echo first -- it is the part that makes the delta zero, so it gets the
+    # budget ahead of decoration. Preserve multiplicity: two occurrences of a
+    # token on the attack side need two on the benign side. These always fit:
+    # each alphabetic run in the payload is separated by at least one non-alpha
+    # character, so the joined echo is never longer than the payload itself.
+    # Echo the payload as the *audit* will see it, not as it is written here.
+    # `normalise` unquotes every record once before the payload column is
+    # written. A query-placed span is quoted on assembly, so that decode is
+    # exactly undone and the audit sees this string; a body- or header-placed
+    # span is stored raw, so the audit sees it decoded, and `%3Csvg` arrives as
+    # `<svg`. Echoing the wrong one is what left `csvg`/`cimg` on the benign side
+    # of a pair with no counterpart on the attack side.
+    seen = urllib.parse.unquote_plus(payload) if decoded else payload
+    # Single letters count here even though the register audits tokenise at two
+    # or more. Deleting punctuation and digits turns `%3A` into a bare `A` and
+    # `%2F` into `F`, and those stray capitals were 99% of what still separated a
+    # pair once the injection was deleted outright (see `src.syntax_ablation`).
+    # Echoing them costs nothing and closes that.
+    parts = list(_ECHO_RE.findall(seen))
+    parts = [w for w in parts if w.lower() not in _POOL_WORDS]
+
+    # The letter run that touches the carrier value. The span is appended with no
+    # separator, so this run *fuses* with the carrier's adjacent word into one
+    # token -- and a fused token is new, so it counts even when the run on its
+    # own is payload-pool vocabulary the audit strips. `home.php` beside
+    # `http://...` yields `phphttp`, which is why 618 of the last 647 mismatched
+    # pairs were off by exactly one. Reproducing the run verbatim at the same
+    # edge makes both sides fuse identically; `prefix` says which edge that is.
+    at_start = not prefix
+    m = (re.match(r"[A-Za-z]+", seen) if at_start
+         else re.search(r"[A-Za-z]+$", seen))
+    seam = m.group(0) if m else ""
+    if seam in parts:
+        parts.remove(seam)            # re-added at the edge below, not dropped
+
+    # Character profile next, capped so echo + markers cannot crowd out the
+    # length match, then word-free padding.
+    budget = int(span_len * 0.6)
+    used = sum(len(t) + 1 for t in parts) + len(seam)
+    for tok in _mirror_charset(payload, rng):
+        if used + len(tok) > budget:
+            break
+        parts.append(tok)
+        used += len(tok) + 1
+    rng.shuffle(parts)
+    toks = ([seam] + parts) if at_start else (parts + [seam])
+    toks = [t for t in toks if t]
+
+    # Fit to length from the end *away* from the seam, so nothing displaces the
+    # run that has to sit against the carrier. Whole tokens first, so a cut never
+    # halves an echoed word into a benign-exclusive fragment (`cimg` -> `cim`).
+    while len(" ".join(toks)) < span_len:
+        pad = rng.choice(_PAD_TOKENS)
+        toks = toks + [pad] if at_start else [pad] + toks
+    while len(" ".join(toks)) > span_len and len(toks) > 1:
+        toks = toks[:-1] if at_start else toks[1:]
+
+    span = " ".join(toks)
+    while len(span) < span_len:                  # exact length, word-free
+        c = rng.choice("1234567")
+        span = span + c if at_start else c + span
+    if at_start:
+        # `_safe_trim` repairs from the tail, which is the free end only when the
+        # seam sits at the head. When it does not, `_safe_join` is the guard that
+        # catches an injective join, and it does so without touching the span.
+        span = _safe_trim(span, span_len)
+        while len(span) < span_len:              # re-pad; digits form no marker
+            span += "1"
+    return span
 
 
 def _greedy_partition(keys, weights, rng):
@@ -515,47 +631,28 @@ def _paired_records(app, ep, pool, rng, pair_no):
             return span
         return f"{span}{v}" if prefix else f"{v}{span}"
 
-    # Trade-off, measured three ways and settled deliberately. With no decoy at
-    # all the carrier-only AUC is 0.539 but every attack is longer than its own
-    # twin (100% of pairs, length-only AUC 0.611). With this decoy the length
-    # signal drops to 0.567 and 80% of pairs match exactly, at the cost of the
-    # carrier AUC rising to ~0.61 -- the benign twin necessarily carries filler
-    # words the attack's payload does not. Drawing the decoy from the
-    # punctuation-dense hard_negative generator instead was worse on both counts
-    # (0.633 / 0.569). Both figures sit well under the 0.75 ceiling, and matched
-    # length is what makes the paired protocol's score delta attributable to the
-    # span's content rather than its size.
+    # The benign twin gets a span of the same length in the same slot, so the
+    # pair differs only in whether the appended span is injective -- not in how
+    # much text it carries. Without it, appending made every attack longer than
+    # its own twin (100% of pairs, 11.3% median gap corpus-wide) and a
+    # length-only model reached AUC 0.611. Length is the oldest shortcut in this
+    # corpus's history; reintroducing it while closing the register leak would
+    # trade one artefact for another.
     #
-    # The benign twin gets a benign span of comparable length in the same slot,
-    # so the pair differs only in whether the appended span is injective -- not
-    # in how much text it carries. Without this, appending made every attack
-    # longer than its own twin (100% of pairs, 11.3% median gap corpus-wide) and
-    # a length-only model reached AUC 0.611. Length is the oldest shortcut in
-    # this corpus's history; reintroducing it while closing the register leak
-    # would trade one artefact for another.
-    ftype = dict(ep["params"]).get(target) or "text"
-    # Character profile first, then ordinary filler, then truncate to the
-    # payload's exact length: the twin matches the attack on both the characters
-    # it contains and how much text it carries.
-    span_len = len(payload)
-    # Markers first, capped at 60% of the budget, and only whole tokens. Word
-    # filler then fills the rest, so the final cut always lands inside ordinary
-    # words -- never inside a percent-escape or a `--`, which is what previously
-    # produced U+FFFD replacement characters and mislabelled hard negatives.
-    # The cap also guarantees the twin keeps some ordinary text, including the
-    # accented and CJK names that give benign rows their character repertoire.
-    marks, budget = [], int(span_len * 0.6)
-    for tok in _mirror_charset(payload, rng):
-        if sum(len(t) + 1 for t in marks) + len(tok) > budget:
-            break
-        marks.append(tok)
-    decoy = " ".join(marks)
-    while len(decoy) < span_len:
-        nxt = str(V.value_for(ftype, rng, tier)) if ftype else ""
-        if not nxt:
-            break
-        decoy = f"{decoy} {nxt}".strip()
-    decoy = _safe_trim(decoy, span_len)
+    # `_decoy_span` matches the payload on three axes at once -- length,
+    # character profile, and carrier vocabulary. v4.2.0 matched only the first
+    # two and paid for the third: see that function's docstring for the
+    # measurements. Matching all three is what makes the paired protocol's score
+    # delta attributable to the span's *content* rather than to its size, its
+    # punctuation, or how many ordinary words sit beside it.
+    # Which slots survive assembly un-quoted, and so reach the payload column one
+    # decode lighter than they were written. Query strings and form bodies go
+    # through `quote_plus`, which `normalise`'s single `unquote_plus` exactly
+    # undoes; JSON, GraphQL, multipart and header slots are stored verbatim and
+    # therefore arrive decoded.
+    raw_slot = in_header or (in_body and C.content_type(ep) in
+                             ("json", "graphql", "multipart"))
+    decoy = _decoy_span(payload, rng, prefix, decoded=raw_slot)
 
     def _safe_join(v, span):
         """Append, then verify the *joined* value. Trimming the span alone is
@@ -563,41 +660,81 @@ def _paired_records(app, ep, pool, rng, pair_no):
         makes `--` at the seam, which is a real SQL comment terminator and would
         turn a hard negative into a mislabelled attack."""
         out = _append(v, span)
-        if V.is_injective(out):
-            # Trimming character by character can leave a dangling `#` or `--`
-            # against a carrier that is itself a SQL snippet (the `code`
-            # category holds real queries). Drop the span for this row instead:
-            # one row without a mirrored profile costs nothing, a mislabelled
-            # hard negative costs the corpus its guarantee.
-            return str(v)
-        return out
+        if not V.is_injective(out):
+            return out
+        # A space at the seam separates the two halves without touching either.
+        # It costs one character of length parity, which the +/-1 tolerance
+        # absorbs, and -- unlike dropping the span -- it keeps the echoed
+        # carrier tokens, so the pair's word delta stays zero. Try it first.
+        spaced = _append(v, f" {span}") if not prefix else _append(v, f"{span} ")
+        if not V.is_injective(spaced):
+            return spaced
+        # Trimming character by character can leave a dangling `#` or `--`
+        # against a carrier that is itself a SQL snippet (the `code` category
+        # holds real queries). Drop the span for this row instead: one row
+        # without a mirrored profile costs nothing, a mislabelled hard negative
+        # costs the corpus its guarantee. Both parity checks tolerate the
+        # handful of rows this reaches; `audit_gaps` reports the share.
+        return str(v)
 
-    if not in_header:
-        values = [(n, _safe_join(v, decoy) if n == target else v) for n, v in values]
-    benign = _assemble(app, ep, values, rng, extra=None)
+    # Verify rather than assume. The three axes `_decoy_span` matches are
+    # properties of the span in isolation; what the audit counts is the
+    # assembled row after `normalise`, and the seam where a span meets its
+    # carrier value can fuse two tokens into one on one side of a pair and not
+    # the other (`report.pdf` + `/admin` -> `pdffadmin`). So assemble, count, and
+    # redraw until the two sides agree. Cheap, because the disagreement is
+    # essentially a coin flip on which token the shuffle left at the edge.
+    hname = "User-Agent" if rng.random() < 0.5 else "Referer"
+
+    def _make_benign(span, reuse):
+        vals = (values if in_header else
+                [(n, _safe_join(v, span) if n == target else v) for n, v in values])
+        rec = _assemble(app, ep, vals, rng, extra=None, reuse=reuse)
+        if in_header:
+            hb = json.loads(rec["headers"])
+            cand = _append(str(hb.get(hname, "")), span)
+            if not V.is_injective(cand):
+                hb[hname] = cand
+                rec["headers"] = _hdr_json(hb)
+        return rec
+
+    benign = _make_benign(decoy, None)
+    envelope = benign["_envelope"]
     benign.update({
         "label": 0, "attack_type": "benign", "family": "benign",
         "tier": tier, "evasion": "none", "placement": "",
         "template": f"benign:{tier}",
         "group": core_id or f"benR-{rng.getrandbits(48):x}",
         "pair_id": pair_id, "split": split, "split_struct": split_struct,
+        # Shared with the twin, not handed to it. v4.1.0 set this on the attack
+        # only, which left all 6,343 paired hard negatives uncategorised -- so
+        # the error-analysis table bucketed a third of the tier, and every one of
+        # the 13 false positives, into `(routine/ambiguous)`. The per-category
+        # false-positive claim was computed over 63% of the tier.
+        "benign_category": bcat,
     })
 
     atk_values = ([(n, v) for n, v in _twin_values] if in_header else
                   [(n, _append(v, payload) if n == target else v)
                    for n, v in _twin_values])
-    attack = _assemble(app, ep, atk_values, rng, extra=None,
-                       reuse=benign["_envelope"])
+    attack = _assemble(app, ep, atk_values, rng, extra=None, reuse=envelope)
     if in_header:
-        hname = "User-Agent" if rng.random() < 0.5 else "Referer"
-        hb = json.loads(benign["headers"])
         ha = json.loads(attack["headers"])
-        base = str(hb.get(hname, ""))
-        ha[hname] = _append(base, payload)
-        cand = _append(base, decoy)
-        hb[hname] = base if V.is_injective(cand) else cand
+        ha[hname] = _append(str(ha.get(hname, "")), payload)
         attack["headers"] = _hdr_json(ha)
-        benign["headers"] = _hdr_json(hb)
+
+    # Redraw the benign span until its assembled carrier-word count matches the
+    # attack's. Bounded: a handful of pairs never converge (the carrier is itself
+    # a SQL snippet, so `_safe_join` keeps dropping the span), and `audit_gaps`
+    # gates the share that does.
+    n_atk = len(_words(normalise(attack)))
+    for _ in range(8):
+        if len(_words(normalise(benign))) == n_atk:
+            break
+        span = _decoy_span(payload, rng, prefix, decoded=raw_slot)
+        retry = _make_benign(span, envelope)
+        retry.update({k: v for k, v in benign.items() if k not in retry})
+        benign = retry
 
     attack.update({
         "label": 1, "attack_type": fam, "family": fam, "tier": "attack",
@@ -1160,6 +1297,11 @@ def main():
 
     pool = P.load_pool(patt_root=PATT_ROOT)
     _MARKER_PROFILES.extend(p for v in pool.values() for p, _ in v)
+    # The register audit strips every word occurring anywhere in the pool before
+    # counting carrier vocabulary. Load the same set here so `_decoy_span` can
+    # balance the pair against the measure that will judge it.
+    _POOL_WORDS.update(w for v in pool.values() for p, _ in v
+                       for w in (t.lower() for t in _WORD_RE.findall(p)))
     json.dump({k: [p for p, _ in v] for k, v in pool.items()},
               open(os.path.join(CORPUS, "payloads.json"), "w"), ensure_ascii=False)
     print("payload pool:", {k: len(v) for k, v in pool.items()},
