@@ -31,6 +31,7 @@ FILES = [
     "data/baselines.json",
     "data/evaluation.json",
     "data/shortcut_stats.json",
+    "data/separability.json",
     "data/model_zoo.json",
     "data/model_zoo_capped.json",
     "corpus/payloads.json",
