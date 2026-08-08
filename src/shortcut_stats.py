@@ -18,9 +18,15 @@ For each character and each corpus it reports
   auc                    a one-feature detector: "flag iff the character is
                          present". 0.5 is chance.
 
-A corpus is shortcut-free on this axis when every character sits near
-CRAMERS_V_CEILING and every AUC near 0.5. CSIC-2010 and ECML/PKDD-2007 are
-included as reference points, not as targets: the comparison is the evidence.
+What is enforced is narrower than "no association", and deliberately so:
+no single character yields a usable detector (AUC <= AUC_CEILING), and every
+association is smaller than in CSIC-2010 and ECML/PKDD-2007. Injection genuinely
+uses punctuation and the `routine` tier is deliberately ordinary alphanumeric
+traffic, so forcing an exact match would falsify the benign distribution -- a
+worse fault than the one being fixed. CRAMERS_V_CEILING is reported as the
+conventional small-effect boundary for reference; it is not a pass condition,
+and the residual above it is stated rather than argued away. The two reference
+corpora are the evidence, not the target.
 """
 
 import argparse

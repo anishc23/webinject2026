@@ -3,9 +3,11 @@
     python -m src.audit_gaps
 
 Five properties the 25-check gate does not test. Four came from an external
-audit of v3.0.0, where all four FAILED; `transfer_ranking` was added in v4.1.0. v4.0.0 fixes them by construction and this module
-is now a blocking CI step alongside `src.validate` -- so the gate is effectively
-30 checks (25 + 5), and a regression in any of these fails the build.
+audit of v3.0.0, where all four FAILED, and were fixed by construction in
+v4.0.0; `pair_integrity` was added in v4.1.0 alongside the pairing it checks.
+This module is a blocking CI step beside `src.validate`, so the gate is
+effectively 30 checks (25 + 5) and a regression in any of these fails the
+build.
 
   lexical_register_leak  attack and benign carriers are drawn from different
                          vocabularies, so the label is recoverable from ordinary
