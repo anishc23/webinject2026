@@ -1,5 +1,97 @@
 # Changelog
 
+## 4.4.0 - the structural protocol is no longer inventory-limited
+
+The template-disjoint split is where the paper's most interesting generalisation
+number comes from, and `struct_split_balance` was flagging it: four families held
+too few templates to occupy three disjoint structural splits. Fixed by
+construction, corpus rebuilt, everything downstream regenerated against the one
+build.
+
+### Fixed
+- **Structural inventory limit.** `ssrf` held only two payload templates and
+  `crlf`/`jndi`/`nosqli` only three, so those families could not reach the
+  structural val (and `ssrf`'s pair could barely reach test). The cause was not
+  only the grammar but the per-family cap: each generator enumerated its first
+  template block past the cap and its later templates never survived. Generators
+  for the four families now **interleave** their template blocks (`_roundrobin`)
+  and carry 1-2 new templates each (`ssrf:userinfo`, `crlf:double_enc`/`log_forge`,
+  `jndi:lower_bypass`/`char_bypass`/`env_bypass`/`nested_lookup`,
+  `nosqli:regex`/`or_array`/`auth_bypass`). Every family now holds **>=4** (most
+  5-7); the pool has **98 templates** (was 84), 26 held out structurally (was
+  24), and `struct_split_balance` reports **no inventory-limited family**, every
+  family in structural train/val/test, prevalence spread **0.002**.
+
+  | | 4.3.0 | 4.4.0 |
+  |---|--:|--:|
+  | attack templates in pool | 84 | **98** |
+  | templates held out structurally | 24 | **26** |
+  | inventory-limited families (<3 templates) | ssrf | **none** |
+  | structural attack-ratio spread | 0.003 | **0.002** |
+
+- **The verbatim-`ambiguous` error floor leaned on one string.** On 4.3.0 the
+  `ambiguous_floor` gate (a strong char n-gram must still false-positive on the
+  verbatim tier) passed with 18 false positives -- but **12 of the 18** were the
+  single specimen `http://169.254.169.254/latest/meta-data/`, which the model
+  over-fired on only because 4.3.0's `ssrf` training was dominated by
+  near-identical `http://169.254.169.254/...` strings. Diversifying `ssrf`
+  removed that crutch and the floor fell to 2, below the gate's floor of 3 --
+  not a corpus defect but a floor resting on an artefact. The verbatim specimen
+  set was widened **26 -> 39** with recognisable, high-volume-family payloads
+  (sqli/xss/cmdi/traversal/ssti), so the floor is now carried across the
+  taxonomy: 9 false positives spread over sqli, xss, ssrf and prototype-pollution
+  specimens. Ambiguous cores grow 884 -> **1,326** (858 discussion, 468
+  verbatim).
+
+### Changed (measured deltas -- the corpus is harder, as expected)
+- Char n-gram TPR@0.1%FPR: payload-disjoint **83.9 -> 87.6**; template-disjoint
+  (structural) **56.1 -> 52.5**. The structural gap widens **27.8 -> 35.1**
+  points -- holding out whole shapes for the newly-templated families is exactly
+  the harder test the split is meant to be.
+- Table 1 (WebInject2026, -syntax -vocab): AUC kept **22% -> 21%**; within-pair
+  matched accuracy with the injection deleted 51.8% -> **51.3%** (94.6% ties).
+- Per-family recall (char n-gram, disjoint): cmdi 32 -> **26**, ssti 73 -> 76,
+  ssrf 75 -> 77; LOFO zero-shot worst/best now cmdi 7.1% / smuggle 69.8%.
+- Error analysis: false positives are still almost all in the `ambiguous` tier
+  (2.01%); one `search` hard-negative now false-positives (0.16%), so the "all
+  seven registers at 0.00%" line becomes "six of seven".
+
+### Added
+- **`docs/build_explainer.py`** rebuilds `Understanding_WebInject2026.pdf` from
+  the shipped JSONs (`manifest`, `baselines`, `evaluation`, `shortcut_stats`,
+  `separability`, `syntax_ablation`, `model_zoo_capped`) at build time -- no
+  number typed by hand, the way `src/figures.py` works. The previous PDF was
+  deleted for going four versions stale; this one cannot. A4, Helvetica,
+  tables not prose, ASCII-only (ReportLab's built-in fonts are WinAnsi).
+
+### Model zoo (regenerated against 4.4.0; all rows carry the 4.4.0 fingerprint)
+- Classical and deep tiers regenerated (full and capped). **XGBoost full now
+  completes** (F1 97.1) and fills the row 4.2.0 left empty -- the `bad_malloc`
+  was a 15.3 GB-machine limit, not intrinsic.
+- **Transformer tier run on GPU** (RTX 3050, 4 GB). DistilBERT (F1 89.4,
+  carrier-only AUC 0.503) and RoBERTa (F1 91.1, structural 69.1, carrier-only
+  0.520) train cleanly at a reduced batch. New `--batch` flag on
+  `src.model_zoo` lets the transformer tier fit a small-VRAM card without
+  changing `max_len` (so the models stay comparable).
+- **DeBERTa-v3 is recorded non-convergent, and the "Metal-only" claim is
+  corrected.** It diverges to a non-finite loss after the *first* optimiser step
+  on **CUDA** -- reproduced across fp32, fp32 with TF32 disabled, and bf16, and
+  independent of learning rate, warm-up and gradient clipping (the divergence is
+  in the backward pass). The prior docs said the NaN was specific to Apple's
+  Metal backend and "completes on CUDA"; it does not. `src.model_zoo` now
+  fail-fasts on the first non-finite loss with an accurate message instead of
+  training a doomed epoch, and the outcome is recorded in
+  `model_zoo_capped.json` as `error` rather than dropped. Completing the row
+  needs a DeBERTa-compatible transformers/torch build.
+
+### Metadata
+- `CITATION.cff` bumped to 4.4.0; the abstract's gate count corrected 31 -> 30
+  (25 `validate` + 5 `audit_gaps`). Author affiliations/ORCIDs and the second
+  author's family name remain author-supplied TODOs (git records only the handle
+  `AbhiShrek07`); the Zenodo DOI is deferred until the repository is made public,
+  which stays the owner's decision. ICISSP 2027 confirmed against the official
+  site: 22-24 February 2027, Malta; regular-paper deadline 15 September 2026.
+
 ## 4.3.0 - the pair is a real counterfactual; Table 1 tests the headline claim
 
 Three defects found by an external review of 4.2.0, all confirmed and all fixed

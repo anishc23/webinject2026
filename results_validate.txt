@@ -1,32 +1,32 @@
-loaded 61,400 rows from /Users/anishc_23/projects/wid-paper/data/webinject2026.csv
+loaded 61,400 rows from data/webinject2026.csv
 
 ====================================================================
 WebInject2026 validation
 ====================================================================
   PASS  ratio              attack ratio 0.261
   PASS  duplicates         0 duplicate payloads
-  PASS  length_gap         median gap 0.008 (benign 373 / attack 376)
-  PASS  char_class         attack-only chars: 2 ('嘊嘍'), shared 99%
+  PASS  length_gap         median gap 0.058 (benign 393 / attack 417)
+  PASS  char_class         attack-only chars: 3 ('嘊嘍�'), shared 98%
   PASS  param_leak         0 near-deterministic params; label-predictive: []
   PASS  path_leak          path->label NMI 0.000
   PASS  metadata_leak      metadata strings in payload: []
-  PASS  ngram_ceiling      char n-gram acc 0.977 (ceiling 0.99); F1 0.955
-  PASS  ngram_floor        char n-gram acc 0.977 (floor 0.8)
+  PASS  ngram_ceiling      char n-gram acc 0.967 (ceiling 0.99); F1 0.934
+  PASS  ngram_floor        char n-gram acc 0.967 (floor 0.8)
   PASS  near_dup           100.00% of rows have a unique digit-masked skeleton (floor 50%)
   PASS  evasion_artifact   attack-exclusive evasion markers: none
-  PASS  disjoint_gen       attack recall on payload-disjoint test 0.923
+  PASS  disjoint_gen       attack recall on payload-disjoint test 0.878
   PASS  split_leak         0 groups span >1 split
-  PASS  split_balance      attack-ratio spread 0.001 (max 0.05); 0 families not in all 3 splits
-  PASS  test_groups        393 attack groups in test (floor 250); smallest family 11 (floor 8)
-  PASS  ambiguous_floor    char n-gram false-positives on 30/171 verbatim-ambiguous test rows (floor 3)
+  PASS  split_balance      attack-ratio spread 0.006 (max 0.05); 0 families not in all 3 splits
+  PASS  test_groups        387 attack groups in test (floor 250); smallest family 11 (floor 8)
+  PASS  ambiguous_floor    char n-gram false-positives on 9/147 verbatim-ambiguous test rows (floor 3)
   PASS  hard_neg           100% of hard-negatives carry attack-class punctuation (n=17,000)
   PASS  guard              0 hard-negatives contain real injection syntax
-  PASS  benign_split_leak  0 benign cores span splits; 471 hard-negative cores in test (floor 300)
+  PASS  benign_split_leak  0 benign cores span splits; 469 hard-negative cores in test (floor 300)
   PASS  header_leak        max header-feature->label NMI 0.0000 (max 0.12)
-  PASS  family_path_leak   path->family NMI 0.197 (max 0.35)
-  PASS  content_type_leak  content_type->label NMI 0.0000 (max 0.05)
+  PASS  family_path_leak   path->family NMI 0.200 (max 0.35)
+  PASS  content_type_leak  content_type->label NMI 0.0001 (max 0.05)
   PASS  struct_split_leak  0 templates span the structural split; 26 attack templates in structural test (floor 12)
-  PASS  struct_gen         attack recall on template-disjoint test 0.795 (floor 0.45)
-  PASS  session_leak       0 sessions span splits; per-session mean attack ratio 0.260 vs global 0.261
+  PASS  struct_gen         attack recall on template-disjoint test 0.531 (floor 0.45)
+  PASS  session_leak       0 sessions span splits; per-session mean attack ratio 0.259 vs global 0.261
 ====================================================================
 RESULT: ALL CHECKS PASS

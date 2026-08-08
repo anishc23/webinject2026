@@ -60,13 +60,13 @@ One HTTP request. 61,400 instances: 45,400 benign, 16,000 attack. Every attack r
 **Class / family distribution.**
 
 - Benign 45,400 = routine 26,000 + hard_negative 17,000 + ambiguous 2,400
-  (in 884 cores). Hard negatives draw from 2,344 groupable,
+  (in 1,326 cores). Hard negatives draw from 2,344 groupable,
   split-disjoint cores.
-- Attack 16,000 across: xss 3,636 · sqli 3,546 · ssti 1,580 · nosqli 1,257 · jndi 1,009 · traversal 868 · ssrf 787 · cmdi 769 · deser 751 · protopollute 650 · ldapi 483 · smuggle 269 · xxe 250 · crlf 145.
-- Distinct attack payloads: 1,942 groups (386 held out in the test split,
-  >=10 per family), across 84 templates (24 held out in the structural test).
-  Placement: query 8,511 · body 6,963 · header 526. Content type: query 31,551 · json 15,722 · multipart 5,295 · form 7,095 · graphql 1,737.
-  Evasion applied to 5,617 (885 chained). 8,236 sessions.
+- Attack 16,000 across: xss 3,697 · sqli 3,550 · ssti 1,498 · nosqli 1,227 · jndi 1,070 · traversal 873 · ssrf 865 · deser 771 · cmdi 725 · protopollute 616 · ldapi 456 · smuggle 267 · xxe 220 · crlf 165.
+- Distinct attack payloads: 1,943 groups (387 held out in the test split,
+  >=11 per family), across 98 templates (26 held out in the structural test).
+  Placement: query 8,510 · body 6,983 · header 507. Content type: query 31,417 · json 15,662 · multipart 5,414 · form 7,138 · graphql 1,769.
+  Evasion applied to 5,647 (901 chained). 8,239 sessions.
 
 **Is anything missing?**
 Header capture is limited to a fixed set of common headers. Server responses,
@@ -113,9 +113,10 @@ train/test. Every non-carrier field uses an unbounded procedural generator, so
 only the (grouped) core can repeat. This closes the v2.1 leak where 67% of
 hard-negative test values were seen verbatim in training. The `ambiguous` tier
 places literal attack syntax in benign contexts, built compositionally from 34
-frames × 26 attack-syntax specimens (884 possible combinations, of which **823
-distinct cores** appear in the shipped corpus — 528 `discussion`, 295
-`verbatim` — across all 14 families). Its `verbatim`
+frames × 39 attack-syntax specimens (1,326 possible combinations, all of which
+appear in the shipped corpus — 858 `discussion`, 468 `verbatim` — across all 14
+families; v4.4 widened the specimen set from 26 so the verbatim floor is carried
+across the taxonomy rather than by one over-represented string). Its `verbatim`
 cores (payload with minimal framing) are the *irreducible* payload-only floor — a
 request-only detector cannot separate them from a real attack, and a strong char
 n-gram false-positives on them as it must (gate: `ambiguous_floor`); its
@@ -127,7 +128,7 @@ plus a deterministic per-family **grammar** (`payloads._generate`) that
 enumerates template slots — comment terminators, sleep durations, target files,
 event handlers, JNDI schemes, prototype keys, smuggling headers — in fixed order.
 Every generated payload carries a `template` name (e.g. `sqli:union`); the pool
-holds 1,942 distinct canonical payloads across 84 templates (no RNG, so the build
+holds 1,943 distinct canonical payloads across 98 templates (no RNG, so the build
 is reproducible). Payloads are deduplicated **globally across families** so no
 string that is plausible for two families (e.g. `file:///etc/passwd`) can appear
 in both train and test. The pool is optionally widened by PayloadsAllTheThings
@@ -173,9 +174,9 @@ Two fixed splits ship, both 70 / 10 / 20, assigned by **group** (not by row) and
 - **`split` — payload-disjoint (primary; report this).** A group is a canonical
   (evasion-stripped) attack payload and all its variants, a hard-negative benign
   core, an ambiguous (frame, specimen) core, or a single routine row. The test
-  holds 393 attack payload groups (≥11 per family) and 471 hard-negative cores.
+  holds 387 attack payload groups (≥11 per family) and 469 hard-negative cores.
 - **`split_struct` — template-disjoint (structural generalisation).** Attacks are
-  grouped by `template`, so whole payload *shapes* are held out; 26 of 84 attack
+  grouped by `template`, so whole payload *shapes* are held out; 26 of 98 attack
   templates are in the structural test. Benign rows are grouped as in `split`. The
   gap between the two splits measures how much a model relies on the systematicity
   of the grammar.
@@ -235,13 +236,13 @@ the raw `path`/`query`/`body`/`headers`).
   `data/patt/` present draws from a larger pool and will not reproduce the
   published CSV byte-for-byte.
 - **Single characters carry a residual, measured association.** `%` sits at
-  17.4% of benign rows against
+  17.5% of benign rows against
   31.2% of attacks (Cramer's V
-  0.149). This is deliberately *not* driven to zero: injection genuinely uses
+  0.147). This is deliberately *not* driven to zero: injection genuinely uses
   punctuation and the `routine` tier is deliberately ordinary alphanumeric
   traffic, so an exact match would falsify the benign distribution. What is
   enforced by `src.shortcut_stats` in CI is that no single character yields a
-  usable detector (best AUC 0.569, ceiling 0.60) and that every association is
+  usable detector (best AUC 0.568, ceiling 0.60) and that every association is
   smaller than in CSIC-2010 (0.316) or ECML/PKDD (0.411). v4.0.0 had this at
   0.318 -- on par with CSIC -- and the claim that no character predicted the
   label was simply wrong until 4.1.0 measured it.
@@ -266,17 +267,20 @@ the raw `path`/`query`/`body`/`headers`).
     reporting its own failure.
   - **`split_struct` imbalance.** `nosqli` and `ssrf` had no structural val or
     test rows and prevalence spread was 0.134. Splits are now decided before
-    generation; spread is 0.007 and every family is in structural train and
-    test. `ssrf` holds only 2 templates so it cannot also reach val -- an
-    inventory limit of the payload grammar, reported by the check rather than
-    hidden. Expanding templates for the thin families (`ssrf` 2, `crlf`/`jndi`/
-    `nosqli` 3) is the next improvement to the structural protocol.
+    generation; spread is **0.002** and every family is in structural train,
+    val *and* test. v4.4 closed the last of this: `ssrf` held only 2 templates
+    and `crlf`/`jndi`/`nosqli` only 3, so those families could not occupy three
+    disjoint structural splits, which the `struct_split_balance` audit flagged.
+    Templates were added so every family now holds at least 4-5 (98 in the pool,
+    up from 84), the audit reports no inventory-limited family, and the
+    structural gap widened as the harder split took effect (char n-gram
+    TPR@0.1%FPR 87.6 on the payload split, 52.5 structural).
   - **`session` had no sequential signal** (variance 0.989x i.i.d.). Sessions
     are now bursty; the ratio is **2.87**.
   - **Cross-corpus transfer read as graded degradation when it was threshold
     collapse.** `baselines.json` now reports `roc_auc` and `pred_pos_rate`
-    alongside F1. Threshold-free, transfer is AUC 0.61 against CSIC-2010 and
-    0.77 against ECML/PKDD, with the model firing on 100% of rows at threshold
+    alongside F1. Threshold-free, transfer is AUC 0.60 against CSIC-2010 and
+    0.76 against ECML/PKDD, with the model firing on 100% of rows at threshold
     0.5. Quote the AUC, not the F1.
   - **Length parity within a pair** (added with the fix, and now checked).
     Appending a payload makes an attack longer than its own twin -- 100% of

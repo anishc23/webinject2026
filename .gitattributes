@@ -1,0 +1,17 @@
+# Normalise all text to LF in the repository and on checkout, on every platform,
+# so the committed bytes match SHA256SUMS everywhere (Windows Python writes CRLF;
+# without this the checksum gate fails on the Linux CI runners).
+* text=auto eol=lf
+
+# Binary artifacts: never touched by EOL conversion (the PDF has no NUL bytes and
+# would otherwise be mis-detected as text and corrupted).
+*.pdf     binary
+*.parquet binary
+*.png     binary
+*.xlsx    binary
+
+# The corpus CSVs carry raw NUL bytes (the null-byte evasion) and must round-trip
+# byte-for-byte for `python -m src.build` reproducibility; leave their bytes as-is.
+data/webinject2026.csv -text
+data/csic_parsed.csv   -text
+data/ecml_parsed.csv   -text

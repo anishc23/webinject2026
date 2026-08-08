@@ -38,6 +38,18 @@ shortcut or leak reappears.
 > ungated one above its own ceiling, and `src.syntax_ablation` (Table 1) tests
 > the corpus's headline claim against CSIC-2010 and ECML/PKDD-2007.
 > See [CHANGELOG.md](CHANGELOG.md).
+>
+> **v4.4 rebuild.** The structural protocol was inventory-limited: `ssrf` held
+> only two payload templates and `crlf`/`jndi`/`nosqli` only three, so those
+> families could not occupy three disjoint structural splits and
+> `struct_split_balance` flagged them. v4.4 adds templates so every family holds
+> at least five (the pool now has **98 templates**, 26 held out structurally),
+> and no family is inventory-limited. Diversifying those families also removed a
+> hidden crutch under the verbatim-`ambiguous` error floor, which had leaned
+> almost entirely on one over-represented SSRF metadata URL; the floor is now
+> carried across the taxonomy (verbatim-ambiguous specimens widened 26 -> 39).
+> Corpus rebuilt; the structural gap widened as expected (TPR@0.1%FPR
+> 87.6 -> 52.5, a 35.1-point gap). See [CHANGELOG.md](CHANGELOG.md).
 
 New to the problem, or preparing a talk on it?
 [**Understanding_WebInject2026.pdf**](Understanding_WebInject2026.pdf) explains
@@ -52,12 +64,12 @@ from first principles, in three layers per idea (intuition, mechanism, detail).
 | Benign / attack | 45,400 / 16,000 (26.1% attack) |
 | Applications | DVWA, OWASP Juice Shop, bWAPP (35 endpoints) |
 | Attack families | SQLi, XSS, command injection, path traversal, SSTI, NoSQLi, SSRF, CRLF, LDAP, XXE, **JNDI/Log4Shell, deserialization, prototype pollution, request smuggling** |
-| Distinct attack payloads (groups) | 1,948 — **388 held out in test**, ≥11 per family |
-| Attack templates | 84 — **24 held out in the structural test** |
+| Distinct attack payloads (groups) | 1,943 — **387 held out in test**, ≥11 per family |
+| Attack templates | 98 — **26 held out in the structural test** |
 | Methods | GET / POST / PUT / PATCH / DELETE |
-| Content types | query 31,497 · json 15,678 · graphql 1,886 · form 7,019 · multipart 5,320 |
-| Injection placement | query 8,676 · body 6,810 · header 514 |
-| Evasion-transformed attacks | 5,462 (34%), of which 872 chained |
+| Content types | query 31,417 · json 15,662 · graphql 1,769 · form 7,138 · multipart 5,414 |
+| Injection placement | query 8,510 · body 6,983 · header 507 |
+| Evasion-transformed attacks | 5,647 (35%), of which 901 chained |
 | Splits | `split` (payload-disjoint) · `split_struct` (template-disjoint); both family/tier-stratified 70/10/20 |
 
 Benign traffic is deliberately built in three tiers so the task cannot collapse
@@ -67,7 +79,7 @@ to a punctuation test:
 |---|---|---|
 | `routine` | 26,000 | Ordinary navigation, alphanumeric-dominant |
 | `hard_negative` | 17,000 | **Punctuation-rich but non-injective** — apostrophes in names, quotes and shell metacharacters in reviews, base64/JWT tokens, URLs and JSON in parameters, pasted code snippets, and the same encoding markers evasions use (`%25`, `/**/`, `&#`, `%00`) in benign contexts. Enumerated into **~2,340 split-disjoint cores**: each row carries one core, the core id is its split group, so no benign phrase spans train/test |
-| `ambiguous` | 2,400 | Benign text that *contains literal attack syntax*, in 884 compositional (frame × specimen) cores across all 14 families, split-disjoint. `discussion` cores ("how do I stop `' OR 1=1--`?") are headroom a context-aware model wins; `verbatim` cores (the payload with minimal framing) are the **irreducible** payload-only error floor. The `group` id is prefixed `ambigD`/`ambigV` so the two are separable |
+| `ambiguous` | 2,400 | Benign text that *contains literal attack syntax*, in 1,326 compositional (frame × specimen) cores across all 14 families, split-disjoint. `discussion` cores ("how do I stop `' OR 1=1--`?") are headroom a context-aware model wins; `verbatim` cores (the payload with minimal framing) are the **irreducible** payload-only error floor. The `group` id is prefixed `ambigD`/`ambigV` so the two are separable |
 
 ## Quick start
 
@@ -118,31 +130,31 @@ group-bootstrap CIs, and cross-dataset transfer. Payload-disjoint headline:
 
 | Baseline | F1 | PR-AUC | TPR@1%FPR | TPR@0.1%FPR |
 |---|--:|--:|--:|--:|
-| length only (1 feature) | 0.0 | 29.0 | 0.0 | 0.0 |
-| special-char count (1 feature) | **0.0** | 29.0 | 1.6 | **0.1** |
-| rule signature (14 regex) | 61.0 | 52.3 | 1.0 | 0.0 |
-| word n-gram (1–2) + LogReg | 53.8 | 73.4 | 27.4 | 17.4 |
-| char n-gram (3–5) + LogReg | **93.1** | 99.3 | 96.2 | **83.9** |
+| length only (1 feature) | 0.0 | 29.6 | 0.0 | 0.0 |
+| special-char count (1 feature) | **0.0** | 28.8 | 0.4 | **0.0** |
+| rule signature (14 regex) | 63.3 | 54.8 | 0.7 | 0.0 |
+| word n-gram (1–2) + LogReg | 53.2 | 74.0 | 26.8 | 16.5 |
+| char n-gram (3–5) + LogReg | **93.4** | 99.4 | 97.1 | **87.6** |
 
-The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 17.4 → 83.9** across
+The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 16.5 → 87.6** across
 baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
 
-- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 91.3 on a random
-  split, **83.9 on the payload-disjoint split, and 56.1 on the template-disjoint
-  (`split_struct`) split** — a 27.8-point structural gap. Report all three.
+- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 87.1 on a random
+  split, **87.6 on the payload-disjoint split, and 52.5 on the template-disjoint
+  (`split_struct`) split** — a 35.1-point structural gap. Report all three.
 - **Prevalence matters.** At the corpus's 25% attack rate the char n-gram's
-  precision at 1% FPR is 97.0%; at a realistic **0.5% prevalence it is 32.6%** (80.8%
-  if you can hold FPR to 0.1%). Report the precision at *your* operating
-  prevalence — `evaluate.py` prints the table.
+  precision at 1% FPR is 97.1%; at a realistic **0.5% prevalence it is 32.8%**, and
+  49.5% at 1%. Report the precision at *your* operating prevalence —
+  `evaluate.py` prints the table.
 - **Group-bootstrap 95% CI** (char n-gram, disjoint, resampling payload groups —
-  not rows): F1 [91.3, 94.6], recall [84.5, 90.4], TPR@0.1%FPR [78.4, 88.5].
-- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 32%** · ssti 73% · ssrf 75% · deser 78% … sqli 96% · xss 98% · jndi 99%.
+  not rows): F1 [91.7, 94.8], recall [85.0, 90.4], TPR@0.1%FPR [80.2, 92.2].
+- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 26%** · ssti 76% · smuggle 76% · ssrf 77% · deser 77% … sqli 97% · xss 97% · jndi 99%.
 - **External validity.** Train here, test on CSIC-2010 / ECML-PKDD-2007: F1 falls
-  from ~96 in-corpus to ~41–46 cross-corpus. **Do not quote that F1 on its own —
+  from ~95 in-corpus to ~41–46 cross-corpus. **Do not quote that F1 on its own —
   it is threshold collapse, not graded degradation.** Recall is ~100% and
   precision equals the base rate, i.e. the model fires on nearly every row; an
   all-positive classifier scores exactly 41.0 at CSIC's base rate. Threshold-free
-  the picture is worse and more honest: **AUC 0.57 against CSIC-2010** and **0.76 against
+  the picture is worse and more honest: **AUC 0.60 against CSIC-2010** and **0.76 against
   ECML/PKDD**, with the model firing on 100% of rows at threshold 0.5. Synthetic detection signal does not
   transfer; see [DATASHEET.md](DATASHEET.md) > Limitations.
 
@@ -162,9 +174,9 @@ model, the same features and the same split. Delete the injection and retrain:
 
 |  | full F1 | full AUC | −syntax −vocab F1 | −syntax −vocab AUC | AUC kept |
 |---|--:|--:|--:|--:|--:|
-| CSIC-2010 | 0.971 | 0.995 | 0.873 | 0.965 | **94%** |
-| ECML/PKDD-2007 | 0.816 | 0.881 | 0.587 | 0.745 | 64% |
-| **WebInject2026** | 0.950 | 0.997 | **0.151** | **0.608** | **22%** |
+| CSIC-2010 | 0.971 | 0.995 | 0.879 | 0.965 | **94%** |
+| ECML/PKDD-2007 | 0.816 | 0.881 | 0.585 | 0.744 | 64% |
+| **WebInject2026** | 0.949 | 0.997 | **0.148** | **0.606** | **21%** |
 
 "AUC kept" is separation above chance as a share of the full model's, since 0.5
 is what a coin scores. **CSIC-2010 keeps 94% of its detection performance with
@@ -179,7 +191,7 @@ leaves `script alert script`, which is still the attack; all three corpora keep
 
 Because every attack here is the counterfactual twin of a benign row, this
 corpus supports a stricter version no other one does — score each attack against
-**its own twin** with the injection deleted. Result: **51.8%, with 94.1% of pairs
+**its own twin** with the injection deleted. Result: **51.3%, with 94.6% of pairs
 scoring identically.** Chance is 50%. With the injection removed there is
 nothing left to separate a pair, which is the property the paired protocol
 asserts, measured rather than assumed.
@@ -194,7 +206,7 @@ and for both corpora it replaces.
 
 | Corpus | strongest character | Cramer's V | best single-char AUC |
 |---|---|--:|--:|
-| **WebInject2026** | `%` | **0.149** | **0.569** |
+| **WebInject2026** | `%` | **0.147** | **0.568** |
 | CSIC-2010 | `-` | 0.316 | 0.672 |
 | ECML/PKDD-2007 | `)` | 0.411 | 0.662 |
 
@@ -212,7 +224,7 @@ Hard negatives are labelled by register in the shipped `benign_category` column
 attributed to the kind of benign text that caused them, which no other
 web-attack corpus supports.
 
-## Seven reference detectors, two training budgets
+## A model zoo: ten detectors, two training budgets
 
 A benchmark that reports one model cannot tell a reader whether a result is a
 property of the corpus or of the model. `python -m src.model_zoo` runs the same
@@ -224,78 +236,70 @@ try to predict the label from the ordinary words left) and **paired accuracy**
 
 **Both tables are published, because the training budget changes the
 conclusion.** Every row below is scored on the same fixed test split; the two
-tables differ only in how much training data the model was given.
+tables differ only in how much training data the model was given. All rows are
+measured against the shipped 4.4.0 corpus (each run records a fingerprint).
 
-Full data — 43,201 training rows (`data/model_zoo.json`):
+Full data — 43,028 training rows (`data/model_zoo.json`, classical + deep):
 
 | Model | Family | F1 | TPR@0.1%FPR | structural | paired acc | carrier-only AUC |
 |---|---|--:|--:|--:|--:|--:|
-| LogisticRegression | classical | 93.1 | 83.9 | 56.1 | 100.0 | 0.572 |
-| RandomForest | classical | 86.9 | 61.9 | 34.5 | 98.9 | 0.571 |
-| LinearSVM | classical | 94.5 | 92.2 | **67.7** | 100.0 | 0.572 |
-| XGBoost | classical | — | — | — | — | — |
-| CNN | deep | 93.8 | 89.6 | **65.2** | 94.4 | 0.546 |
-| LSTM | deep | 94.4 | 86.9 | 53.5 | 94.2 | 0.548 |
-| BiLSTM | deep | 94.3 | 87.9 | 56.6 | 94.3 | 0.537 |
+| LogisticRegression | classical | 93.4 | 87.6 | 52.5 | 99.9 | 0.575 |
+| RandomForest | classical | 86.4 | 56.2 | 32.9 | 99.7 | 0.567 |
+| LinearSVM | classical | 94.5 | 90.6 | 59.3 | 100.0 | 0.577 |
+| XGBoost | classical | **97.1** | **95.0** | 61.7 | 99.8 | 0.566 |
+| CNN | deep | 93.6 | 86.4 | **70.9** | 93.1 | 0.562 |
+| LSTM | deep | 93.0 | 86.4 | 47.0 | 92.9 | 0.546 |
+| BiLSTM | deep | 93.4 | 83.9 | 49.3 | 92.7 | 0.539 |
 
 Capped — an identical 8,000-row stratified subsample (`data/model_zoo_capped.json`):
 
 | Model | Family | F1 | TPR@0.1%FPR | structural | paired acc | carrier-only AUC |
 |---|---|--:|--:|--:|--:|--:|
-| LogisticRegression | classical | 86.6 | 68.4 | 41.7 | 100.0 | 0.552 |
-| RandomForest | classical | 81.2 | 34.4 | 20.2 | 98.5 | 0.544 |
-| LinearSVM | classical | 88.5 | 74.3 | 46.1 | 100.0 | 0.550 |
-| XGBoost | classical | 91.9 | 79.2 | 46.9 | 99.6 | 0.533 |
-| CNN | deep | 90.5 | 71.9 | 49.7 | 94.5 | 0.527 |
-| LSTM | deep | 87.7 | 55.4 | 6.3 | 94.0 | 0.516 |
-| BiLSTM | deep | 82.8 | 7.4 | 31.1 | 93.8 | 0.512 |
+| LogisticRegression | classical | 86.2 | 55.3 | 33.9 | 99.9 | 0.550 |
+| RandomForest | classical | 79.7 | 28.5 | 16.6 | 98.8 | 0.542 |
+| LinearSVM | classical | 88.3 | 62.8 | 37.8 | 99.9 | 0.550 |
+| XGBoost | classical | 92.0 | 71.6 | 38.9 | 99.7 | 0.533 |
+| CNN | deep | 89.1 | 62.7 | 47.9 | 92.8 | 0.528 |
+| LSTM | deep | 69.3 | 12.7 | 11.4 | 87.3 | 0.517 |
+| BiLSTM | deep | 84.3 | 35.9 | 4.7 | 92.4 | 0.519 |
+| DistilBERT | transformer | 89.4 | 63.7 | 36.6 | 96.4 | **0.503** |
+| RoBERTa | transformer | 91.1 | 74.7 | **69.1** | 97.1 | 0.520 |
+| DeBERTa-v3 | transformer | — | — | — | — | — |
 
-Read the last two columns first. Carrier-only AUC runs **0.512–0.572** across
+Read the last two columns first. Carrier-only AUC runs **0.503–0.577** across
 every model in both tables — none can recover the label once the injection is
-gone. Paired accuracy is 93.8–100%: every model's decision tracks the injected
-span rather than the surrounding text. Those two numbers are what a headline F1
-cannot tell you, and reporting them is the point of the corpus.
+gone (RoBERTa and DistilBERT sit closest to the 0.5 floor). Paired accuracy is
+**87.3–100%**: every model's decision tracks the injected span rather than the
+surrounding text. Those two numbers are what a headline F1 cannot tell you, and
+reporting them is the point of the corpus.
 
 **On the structural protocol, the training budget is the story.** At 8,000 rows
-the best classical or deep model reaches 49.7; at full data LinearSVM reaches
-67.7 and the char-CNN 65.2 — the same models, 18–20 points better. v4.2.0
-published only the capped table and concluded from it that "RoBERTa is the only
-model that substantially closes the structural gap (72.2 against 22.9–42.6)".
-That conclusion does not survive: it compared a transformer against classical
-models trained on 13% of the corpus. What the two tables actually support is
-that the transformer was the most **sample-efficient** model at a fixed budget,
-which is a claim about budgets, not about model families, and it is not evidence
-that structural generalisation is a model limitation rather than a property of
-the task.
+the best classical or deep model reaches only 47.9 (CNN); the transformer is the
+most **sample-efficient** — RoBERTa reaches **69.1** at that same budget. But at
+full data the char-CNN reaches 70.9 and XGBoost 61.7, so the transformer's edge
+is a claim about *budgets*, not model families: it does not show that structural
+generalisation is a model limitation rather than a property of the task. (v4.2.0
+published only the capped table and drew the stronger conclusion; the two tables
+together do not support it. Transformers were run capped only — a full-data
+transformer sweep on this corpus is future work needing more GPU memory than a
+4 GB laptop card allows.)
 
-**Two rows did not run, both for resource reasons, both recorded rather than
-dropped.**
+**One row did not run, recorded rather than dropped.**
 
-- *XGBoost, full data.* `bad_malloc` — needed 12.3 GB on a 15.3 GB machine
-  (200k char n-gram features × 43k rows, `tree_method=hist`), reproduced with
-  nothing else running. Cutting `max_features` for this model alone would break
-  the like-for-like feature setup, so the row is left empty. The capped run
-  completes.
-- *DeBERTa-v3.* Its disentangled attention diverges to NaN in fp32 on Apple's
-  Metal backend, with and without gradient clipping at lr 1e-5; CPU managed
-  fewer than five optimiser steps in ten minutes. The harness selects CUDA
-  automatically, so `--tier transformer --models DeBERTa` completes the set on a
-  CUDA machine.
+- *DeBERTa-v3.* It diverges to a non-finite loss **after the first optimiser
+  step on CUDA** (an RTX 3050; torch cu128; transformers 5.14), reproduced
+  across fp32, fp32 with TF32 disabled, and bf16, and independent of learning
+  rate, warm-up and gradient clipping — the divergence is in the backward pass,
+  so no optimiser setting rescues it. This **corrects** the earlier claim that
+  the NaN was specific to Apple's Metal backend: it is not. The outcome is
+  recorded in `data/model_zoo_capped.json` as `error`; completing the row needs
+  a DeBERTa-compatible transformers/torch build. DistilBERT and RoBERTa train
+  cleanly on the same 4 GB card at a reduced batch (new `--batch` flag).
 
-**The transformer tier is not in either table above.** DistilBERT and RoBERTa
-were measured against the 4.2.0 corpus, and 4.3.0 rebuilt every benign twin, so
-those numbers are not comparable to the rows here. They are retained in
-`data/model_zoo_capped.json` flagged `_stale`, and re-running them needs
-`transformers` plus a CUDA device:
-
-```bash
-python -m src.model_zoo --tier transformer --train-cap 8000 --json data/model_zoo_capped.json
-```
-
-Each run now records a corpus fingerprint and flags any pre-existing row that
-was measured against a different build — the tiers run as separate processes
-into one JSON, and a table silently mixing two corpora is worse than a table
-with a gap in it.
+XGBoost, by contrast, **now completes at full data** here (F1 97.1) — the
+`bad_malloc` recorded in v4.2.0 was a 15.3 GB-machine limit, not an intrinsic
+one. Each run records a corpus fingerprint and flags any pre-existing row from a
+different build, so a table never silently mixes two corpora.
 
 ## Evaluation protocols
 
@@ -316,39 +320,40 @@ with a gap in it.
 Every protocol reports precision corrected to 0.5% / 1% / 5% / 26% attack
 prevalence. Reference char n-gram, payload-disjoint test:
 
-- **Structural gap.** TPR@0.1%FPR falls **83.9 → 56.1** from the payload-disjoint
-  to the template-disjoint split (27.8 pts) — the model leans on template shape.
-- **Zero-shot (LOFO) recall spans 4.9 → 90.0%.** A model that never saw the family
-  barely flags protopollute (4.9%) or xss (8.7%), but transfers to smuggle (90.0%)
-  and xxe (61.2%). Injection detection does **not** generalise uniformly across families.
+- **Structural gap.** TPR@0.1%FPR falls **87.6 → 52.5** from the payload-disjoint
+  to the template-disjoint split (35.1 pts) — the model leans on template shape.
+- **Zero-shot (LOFO) recall spans 7.1 → 69.8%.** A model that never saw the family
+  barely flags cmdi (7.1%) or sqli (7.4%), but transfers to smuggle (69.8%)
+  and xxe (66.7%). Injection detection does **not** generalise uniformly across families.
 - **Matched-pair sensitivity (new in v4).** Every attack is the counterfactual
   twin of a benign row, differing only by the injected span and matched on
   length, so a score difference is attributable to that span alone. On the
-  3,158 test pairs the reference model scores the attack above its own twin in
-  **99.8%** of pairs (median delta **+0.93**, 10th percentile
-  +0.40), and cleanly crosses the 0.5 threshold in the right direction in
-  **87.6%**. A detector keying on carrier text rather than the injection shows a
+  3,227 test pairs the reference model scores the attack above its own twin in
+  **99.9%** of pairs (median delta **+0.92**, 10th percentile
+  +0.38), and cleanly crosses the 0.5 threshold in the right direction in
+  **87.8%**. A detector keying on carrier text rather than the injection shows a
   delta near zero here even when its aggregate F1 looks strong — which no metric
   over independently drawn rows can reveal.
-- **Calibration.** Brier 0.0248, ECE 0.0528, MCE 0.5220; mean score
-  0.242 against a base rate of 0.258. The reliability curve ships as data
+- **Calibration.** Brier 0.0246, ECE 0.0562, MCE 0.5395; mean score
+  0.245 against a base rate of 0.262. The reliability curve ships as data
   in `data/evaluation.json`, not as a picture.
-- **Error analysis.** All seven hard-negative registers sit at **0.00%** false
-  positives, across all 3,412 categorised hard negatives in the test split. Every
-  false positive falls in the `ambiguous` tier (4.01%, against 0.02% for
-  `routine` and 0.00% for `hard_negative`) — which is what that tier is for: it
-  is benign text built to contain literal attack syntax, and the corpus's
-  declared error floor. Misses concentrate in command injection (67.9%).
+- **Error analysis.** Six of the seven hard-negative registers sit at **0.00%**
+  false positives across the categorised hard negatives in the test split; only
+  `search` shows any, at **0.16%** (1 row). Almost every false positive falls in
+  the `ambiguous` tier (2.01%, against 0.00% for `routine` and 0.03% for
+  `hard_negative`) — which is what that tier is for: it is benign text built to
+  contain literal attack syntax, and the corpus's declared error floor. Misses
+  concentrate in command injection (74.0% of cmdi test attacks missed).
   Attributable because `benign_category` ships with the data, on **both** halves
   of every pair — before 4.3.0 it was moved to the attack twin, leaving a third
   of the tier uncategorised and every false positive pooled in one row.
 - **Span attribution.** Deleting the injected span moves the score
-  0.829 → 0.071 (twin 0.014); median attribution
-  0.941, localisation rate 87.7%. Because the counterfactual is in
+  0.824 → 0.078 (twin 0.016); median attribution
+  0.935, localisation rate 86.9%. Because the counterfactual is in
   the data, this is measured rather than approximated as SHAP or integrated
   gradients would.
 - **Evasion hold-out.** Trained on plain attacks only, recall on *evaded* test
-  attacks is **57.8%** (59.6% on chained transforms).
+  attacks is **51.4%** (49.7% on chained transforms).
 
 To grade your own detector on the fixed test split, pass one score per test row
 (in `df[df.split=='test']` order):
@@ -374,7 +379,7 @@ python -m src.evaluate --predictions my_scores.(csv|parquet|npy)
 - **evasion_artifact** — no evasion marker (`%25`, `/**/`, `&#`, `%00` …) is attack-exclusive; each also occurs in benign traffic
 - **disjoint_gen / struct_gen** — attack recall stays high on the payload-disjoint *and* template-disjoint test sets
 - **split_leak / struct_split_leak** — no group spans `split`, and no template spans `split_struct`
-- **split_balance** — attack ratio matches across splits and every family appears in all three — **on `split` only**. `split_struct` is template-disjoint but *not* balanced: attack prevalence runs 28.6% train / 21.2% test / 15.3% val (spread 0.134, against 0.0005 for `split`), `nosqli` and `ssrf` have no rows in its val or test sets, and six families have no val rows. Treat the structural gap as measured under a different family mix, not a like-for-like comparison — see [DATASHEET.md](DATASHEET.md) > Limitations
+- **split_balance** — attack ratio matches across splits and every family appears in all three. On `split` the spread is 0.006; on `split_struct` it is now **0.002** (26.1% train / 26.0% test / 25.9% val) with every family in all three splits, since v4.4 gave the previously thin families (`ssrf`, `crlf`, `jndi`, `nosqli`) enough templates to occupy them — the `struct_split_balance` audit reports no inventory-limited family. The structural split is still template-disjoint by construction, so it remains harder, but it is no longer a different family mix — see [DATASHEET.md](DATASHEET.md) > Limitations
 - **benign_split_leak** — hard-negative/ambiguous benign cores never span splits, and the test holds ≥300 distinct benign cores (the benign mirror of the payload-disjoint attack split)
 - **test_groups** — the disjoint test holds ≥250 attack payload groups overall and ≥8 per family
 - **session_leak** — sessions never span a split and are not segregated by label
@@ -407,7 +412,8 @@ data/model_zoo.json          model sweep at full data; data/model_zoo_capped.jso
 tests/             pytest wrapper around the gate
 figures/           the eight figures, regenerated by `python -m src.figures`
 DATASHEET.md       datasheet-for-datasets (motivation, composition, collection, uses, limitations)
-Understanding_WebInject2026.pdf   plain-language explanation of the whole corpus (21 pp.)
+Understanding_WebInject2026.pdf   plain-language explanation of the whole corpus, generated from the shipped JSONs by docs/build_explainer.py
+docs/build_explainer.py           rebuilds the explainer PDF from the result JSONs (no number typed by hand)
 Literature_Review_WebInject2026.xlsx   related-work matrix
 ```
 
@@ -427,7 +433,7 @@ synthetic — it contains no real users, credentials, or PII.
   author = {Choudhury, Anish and Abhishek},
   title  = {WebInject2026: A Leakage-Audited Corpus for Web Injection Detection},
   year   = {2026},
-  note   = {Version 3.0.0},
+  note   = {Version 4.4.0},
   howpublished = {\url{https://github.com/anishc23/webinject2026}}
 }
 ```

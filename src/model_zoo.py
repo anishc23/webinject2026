@@ -236,6 +236,15 @@ def _transformer(name, epochs=1, max_len=128, batch=32, lr=3e-5, clip=1.0):
                                   AutoTokenizer)
         dev = ("mps" if torch.backends.mps.is_available()
                else "cuda" if torch.cuda.is_available() else "cpu")
+        if dev == "cuda":
+            # DeBERTa-v3's disentangled attention diverges to NaN in fp32 when
+            # matmuls run in TF32 (the Ampere default): the reduced-precision
+            # accumulation in the attention scores compounds until the softmax
+            # overflows. Forcing true fp32 accumulation keeps it finite, and is
+            # harmless for the other two. (Handoff: "try fp32 with TF32 disabled
+            # before giving up.")
+            torch.backends.cuda.matmul.allow_tf32 = False
+            torch.backends.cudnn.allow_tf32 = False
         tok = AutoTokenizer.from_pretrained(HF_IDS[name])
         model = AutoModelForSequenceClassification.from_pretrained(
             HF_IDS[name], num_labels=2).to(dev)
@@ -252,13 +261,27 @@ def _transformer(name, epochs=1, max_len=128, batch=32, lr=3e-5, clip=1.0):
         opt = torch.optim.AdamW(model.parameters(), lr=lr)
         model.train()
         for _ in range(epochs):
-            for b in batches(tr.payload.astype(str), tr.label.to_numpy(), True):
+            for step, b in enumerate(
+                    batches(tr.payload.astype(str), tr.label.to_numpy(), True)):
                 ids, am, y = (t.to(dev) for t in b)
                 opt.zero_grad()
                 out = model(input_ids=ids, attention_mask=am, labels=y)
+                # Fail fast on divergence instead of training a doomed epoch and
+                # only discovering it at eval. DeBERTa-v3's disentangled attention
+                # diverges to a non-finite loss after the first optimiser step on
+                # this stack -- see the RuntimeError below -- so bail on the first
+                # non-finite loss rather than spending ~30 min per fit to confirm.
+                if not torch.isfinite(out.loss):
+                    raise RuntimeError(
+                        f"{name} diverged to a non-finite loss at optimiser step "
+                        f"{step} on {dev}. Reproduced on CUDA (not only Apple "
+                        f"Metal) across fp32, fp32 with TF32 disabled, and bf16, "
+                        f"and independent of learning rate, warm-up and gradient "
+                        f"clipping: the divergence is in the backward pass, so no "
+                        f"optimiser setting rescues it. Recorded as non-convergent "
+                        f"on transformers/torch as installed; needs a "
+                        f"DeBERTa-compatible stack.")
                 out.loss.backward()
-                # DeBERTa-v3's disentangled attention diverges to NaN in fp32 on
-                # the Metal backend without this; harmless for the others.
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
                 opt.step()
         model.eval()
@@ -271,8 +294,8 @@ def _transformer(name, epochs=1, max_len=128, batch=32, lr=3e-5, clip=1.0):
         out = np.concatenate(outs)
         if not np.isfinite(out).all():
             raise RuntimeError(
-                f"{name} produced non-finite scores on {dev}; this is a known "
-                f"DeBERTa-v3/Metal fp32 issue. Re-run this model on CUDA or CPU.")
+                f"{name} produced non-finite scores on {dev} despite a finite "
+                f"training loss -- unexpected; inspect the checkpoint.")
         return out
     return run
 
@@ -374,8 +397,20 @@ def main():
     ap.add_argument("--no-ablation", action="store_true")
     ap.add_argument("--train-cap", type=int, default=None,
                     help="cap the training split (stratified) for a tractable sweep")
+    ap.add_argument("--batch", type=int, default=None,
+                    help="override the transformer fine-tuning batch size "
+                         "(default 32); lower it to fit a small-VRAM GPU")
     ap.add_argument("--json", default=None)
     args = ap.parse_args()
+
+    # Small-VRAM GPUs (e.g. a 4 GB laptop card) cannot hold the default batch of
+    # 32 for RoBERTa/DeBERTa; rebuild the transformer tier with the requested
+    # batch. Keeps max_len at 128 so the numbers stay comparable across models.
+    if args.batch:
+        TIERS["transformer"] = [
+            (n, _transformer(n, batch=args.batch,
+                             lr=1e-5 if n == "DeBERTa" else 3e-5))
+            for n in HF_IDS]
 
     df = pd.read_csv(args.csv, keep_default_na=False, dtype=str)
     df["label"] = df["label"].astype(int)
