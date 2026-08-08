@@ -39,6 +39,9 @@ import numpy as np
 import pandas as pd
 from sklearn.metrics import roc_auc_score
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src import checksums as S  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 
@@ -182,6 +185,7 @@ def main():
               f"documented, not claimed away -- see DATASHEET.md > Limitations.")
 
     if args.json:
+        out["_corpus"] = S.corpus_fingerprint(csv_path=args.csv)
         json.dump(out, open(args.json, "w"), indent=1)
         print(f"wrote {args.json}")
     return 0 if ok else 1

@@ -1,4 +1,4 @@
-# Datasheet — WebInject2026 v4.4.0
+# Datasheet — WebInject2026 v4.5.0
 
 Following Gebru et al., *Datasheets for Datasets* (2021). This document is the
 authoritative description of what the corpus is, how it was made, and where it
@@ -235,6 +235,42 @@ the raw `path`/`query`/`body`/`headers`).
   released corpus was built *without* it (1,979 payloads); a rebuild with
   `data/patt/` present draws from a larger pool and will not reproduce the
   published CSV byte-for-byte.
+- **The skeleton result, and why it is not a shortcut.** A model given only the
+  punctuation shape (every alphanumeric run collapsed to `#`) scores
+  0.991 here, against 0.906 on CSIC-2010 and 0.910 on
+  ECML/PKDD-2007. Alone that reads as a worse shortcut than the corpora this one
+  replaces. Two controls, both shipped in `data/separability.json`, say
+  otherwise. Within a matched pair -- where both halves carry identical carrier
+  text, so only the injected span differs -- the skeleton model scores
+  0.996 and puts the attack above its own twin in
+  99.4% of 3,227 pairs. Refit template-disjoint, where every
+  attack shape at test time is unseen in training, it scores
+  0.976 against 0.983 for the full payload on the identical
+  split. A model that had memorised this generator's benign mirror motifs
+  (`%25`, `/**/`, `[1]`, `1|2`, `--7`) would collapse there; it does not, and
+  `skeleton_generalises` now fails the build if that stops being true.
+
+  Injection is a punctuation phenomenon, so a corpus built around injection
+  syntax *should* be skeleton-separable. The distinguishing fact is where the
+  separability lives: in structure here (skeleton 0.991,
+  vocabulary-stripped 0.606), in vocabulary for CSIC-2010
+  (skeleton 0.906, vocabulary-stripped 0.966).
+- **Table 1 ships two panels, and the second is less flattering.** The pool panel
+  deletes one fixed vocabulary -- this corpus's payload pool -- from all three
+  corpora, which is exhaustive here and partial elsewhere (44% of our
+  characters against 20% and 15%). The symmetric panel derives the
+  vocabulary per corpus from its own training attacks, matching deletion
+  aggression (23% / 21% / 15%). Under it we retain
+  65% of our above-chance separation against ECML/PKDD-2007's
+  31% -- we rank behind ECML, and that is reported rather than buried.
+
+  Matched aggression is not matched completeness, and the pairs let us show it:
+  with the pool vocabulary deleted a model scores an attack above its own twin
+  51% of the time (chance), but with the symmetric vocabulary deleted
+  it still manages 80%, so injection residue survives that rule. Part of
+  the higher retention under the symmetric panel is incomplete deletion rather
+  than non-injection signal. No corpus without pairs can be checked this way,
+  which is why both panels ship and neither is called the real one.
 - **Single characters carry a residual, measured association.** `%` sits at
   17.5% of benign rows against
   31.2% of attacks (Cramer's V

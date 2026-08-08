@@ -1,13 +1,13 @@
-"""Construction checks: five properties `src.validate` does not test.
+"""Construction checks: seven properties `src.validate` does not test.
 
     python -m src.audit_gaps
 
-Five properties the 25-check gate does not test. Four came from an external
+Seven properties the 25-check gate does not test. Four came from an external
 audit of v3.0.0, where all four FAILED, and were fixed by construction in
-v4.0.0; `pair_integrity` was added in v4.1.0 alongside the pairing it checks.
-This module is a blocking CI step beside `src.validate`, so the gate is
-effectively 30 checks (25 + 5) and a regression in any of these fails the
-build.
+v4.0.0; `pair_integrity` was added in v4.1.0 alongside the pairing it checks,
+and `skeleton_generalises` in v4.5.0 to keep the skeleton finding honest. This
+module is a blocking CI step beside `src.validate`, so the gate is effectively
+32 checks (25 + 7) and a regression in any of these fails the build.
 
   lexical_register_leak  attack and benign carriers are drawn from different
                          vocabularies, so the label is recoverable from ordinary
@@ -21,6 +21,11 @@ build.
   pair_integrity         every counterfactual pair is complete, sits wholly in
                          one split, and matches its twin on both length and
                          carrier vocabulary
+  skeleton_generalises   the punctuation-skeleton signal must survive attack
+                         shapes held out of training, or it is memorisation of
+                         the generator's own motifs rather than injection grammar
+  results_match_corpus   every shipped result JSON carries the fingerprint of
+                         the corpus it was computed against, and it matches
   transfer_ranking       cross-corpus transfer reported as F1 at a fixed
                          threshold hides threshold collapse; measure AUC/PR-AUC
                          and show the predicted-positive rate
@@ -42,6 +47,9 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, f1_score, roc_auc_score
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+from src import checksums as S  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 
@@ -54,6 +62,7 @@ STRUCT_SPREAD_MAX = 0.05
 SESSION_RATIO_FLOOR = 1.15
 PAIR_LEN_PARITY_FLOOR = 0.75
 PAIR_WORD_PARITY_FLOOR = 0.95
+SKELETON_GAP_MAX = 0.10
 
 _results = []
 
@@ -261,6 +270,87 @@ def check_pair_integrity(df):
            f"attack word-poorer in {fewer*100:.1f}%")
 
 
+
+def check_skeleton_generalises(df):
+    """Does the punctuation-skeleton signal survive unseen attack shapes?
+
+    This corpus is the most skeleton-separable of the three (0.99, against 0.91
+    for CSIC-2010 and ECML/PKDD-2007), and read alone that looks like the worse
+    shortcut. It is the opposite, but only a control can show it: injection IS a
+    punctuation phenomenon, so separability living in punctuation structure is
+    the right profile -- provided the structure is injection grammar and not
+    this generator's own benign mirror motifs (`%25`, `/**/`, `[1]`, `1|2`).
+
+    Refit the skeleton model on template-disjoint train and score
+    template-disjoint test, where every attack shape is one the model never saw.
+    Memorised motifs collapse there; learned grammar does not. Gated against the
+    full-payload model on the identical split, so the bar is relative rather
+    than absolute: the skeleton must stay within SKELETON_GAP_MAX of it.
+    """
+    skel = df["payload"].astype(str).map(lambda t: re.sub(r"[A-Za-z0-9]+", "#", t))
+    y = df["label"].to_numpy().astype(int)
+    tr = (df["split_struct"] == "train").to_numpy()
+    te = (df["split_struct"] == "test").to_numpy()
+    if not (tr.any() and te.any()) or len(set(y[te])) < 2:
+        report("skeleton_generalises", False, "no usable structural split")
+        return
+
+    def _auc(texts):
+        v = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5), min_df=3,
+                            max_features=200000)
+        A = v.fit_transform(texts[tr])
+        m = LogisticRegression(max_iter=2000, C=4.0).fit(A, y[tr])
+        return float(roc_auc_score(y[te], m.predict_proba(v.transform(texts[te]))[:, 1]))
+
+    sk = _auc(skel.to_numpy())
+    full = _auc(df["payload"].astype(str).to_numpy())
+    gap = full - sk
+    report("skeleton_generalises", gap <= SKELETON_GAP_MAX,
+           f"template-disjoint skeleton AUC {sk:.3f} vs full payload {full:.3f} "
+           f"on the same split; gap {gap:.3f} (max {SKELETON_GAP_MAX})")
+
+
+
+RESULT_FILES = ("baselines.json", "evaluation.json", "shortcut_stats.json",
+                "separability.json", "syntax_ablation.json",
+                "model_zoo.json", "model_zoo_capped.json")
+
+
+def check_results_match_corpus(df):
+    """Every shipped result must have been computed against the shipped corpus.
+
+    This is the defect that keeps recurring -- v4.0.0, v4.3.0, and v4.4.0 twice.
+    Each time the results were regenerated, the corpus was rebuilt afterwards,
+    and nothing noticed. SHA256SUMS cannot notice: a result file regenerated from
+    an older build is internally consistent and hashes correctly, so the manifest
+    passes while the numbers describe a corpus that is no longer shipped. The
+    drift is small -- v4.4.0's disjoint recall was 0.87822 against an actual
+    0.87853 -- which is precisely why review never catches it.
+
+    So each writer stamps `_corpus` into its JSON and this check compares the
+    stamps. A file with no stamp predates the scheme and is reported as unknown
+    provenance rather than waved through.
+    """
+    want = S.corpus_fingerprint(df)
+    bad, unstamped = [], []
+    for name in RESULT_FILES:
+        path = os.path.join(DATA, name)
+        if not os.path.exists(path):
+            continue
+        try:
+            got = json.load(open(path)).get("_corpus")
+        except Exception:
+            bad.append(f"{name}(unreadable)")
+            continue
+        if got is None:
+            unstamped.append(name)
+        elif got != want:
+            bad.append(f"{name}({got})")
+    report("results_match_corpus", not bad and not unstamped,
+           f"corpus {want}; mismatched: {bad or 'none'}; unstamped: "
+           f"{unstamped or 'none'}")
+
+
 def check_transfer_ranking(df):
     """Cross-corpus transfer must be *reported* threshold-free.
 
@@ -320,6 +410,8 @@ def main():
     check_struct_split_balance(df)
     check_session_signal(df)
     check_pair_integrity(df)
+    check_skeleton_generalises(df)
+    check_results_match_corpus(df)
     check_transfer_ranking(df)
     print("=" * 76)
     failed = [n for n, ok, _ in _results if not ok]

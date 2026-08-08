@@ -1,81 +1,171 @@
-[
- {
-  "corpus": "CSIC-2010",
-  "n": 96851,
-  "base_rate": 0.25659001972101475,
-  "vocab_size": 404,
-  "full": {
-   "f1": 0.9709500671973534,
-   "roc_auc": 0.9949719426202379,
-   "chars_deleted": 0.0
+{
+ "pool": [
+  {
+   "corpus": "CSIC-2010",
+   "panel": "pool",
+   "n": 96851,
+   "base_rate": 0.25659001972101475,
+   "vocab_size": 404,
+   "full": {
+    "f1": 0.980319803198032,
+    "roc_auc": 0.9962268577089926,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.9009244154431756,
+    "roc_auc": 0.9761990385476528,
+    "chars_deleted": 0.13254196622992176,
+    "auc_retained": 0.9596397920624343,
+    "f1_retained": 0.9190107274219596
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.8816443805945409,
+    "roc_auc": 0.9662364297583292,
+    "chars_deleted": 0.20252318542210068,
+    "auc_retained": 0.9395630698243043,
+    "f1_retained": 0.8993436404308177
+   }
   },
-  "syntax_deleted": {
-   "f1": 0.9047773805654858,
-   "roc_auc": 0.9769069594289577,
-   "chars_deleted": 0.13254196622992176,
-   "auc_retained": 0.9635030157555002,
-   "f1_retained": 0.9318474874584695
+  {
+   "corpus": "ECML/PKDD-2007",
+   "panel": "pool",
+   "n": 48991,
+   "base_rate": 0.2980751566614276,
+   "vocab_size": 404,
+   "full": {
+    "f1": 0.8177957532861476,
+    "roc_auc": 0.881768065304845,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.7471713639168895,
+    "roc_auc": 0.8376834025878124,
+    "chars_deleted": 0.11488464730649195,
+    "auc_retained": 0.8845250121121823,
+    "f1_retained": 0.9136405525640502
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.5876379690949227,
+    "roc_auc": 0.7439314022780162,
+    "chars_deleted": 0.15049463113939154,
+    "auc_retained": 0.6389518255887511,
+    "f1_retained": 0.7185632436138459
+   }
   },
-  "syntax_and_vocab_deleted": {
-   "f1": 0.8789118655313503,
-   "roc_auc": 0.9652789174460693,
-   "chars_deleted": 0.20252318542210068,
-   "auc_retained": 0.9400106902686598,
-   "f1_retained": 0.9052081000090237
+  {
+   "corpus": "WebInject2026",
+   "panel": "pool",
+   "n": 61400,
+   "base_rate": 0.26058631921824105,
+   "vocab_size": 404,
+   "full": {
+    "f1": 0.9518111254851229,
+    "roc_auc": 0.9977264370732052,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.8876071193144364,
+    "roc_auc": 0.9740580600986256,
+    "chars_deleted": 0.2154049266349951,
+    "auc_retained": 0.9524470166508385,
+    "f1_retained": 0.932545434223662,
+    "paired_accuracy": 0.9679268670591881,
+    "paired_ties": 0.0461729160210722
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.14758000528960594,
+    "roc_auc": 0.6059222330930147,
+    "chars_deleted": 0.44123712598279274,
+    "auc_retained": 0.21281214981440857,
+    "f1_retained": 0.15505177585982383,
+    "paired_accuracy": 0.5130151843817787,
+    "paired_ties": 0.9460799504183453
+   }
   }
- },
- {
-  "corpus": "ECML/PKDD-2007",
-  "n": 48991,
-  "base_rate": 0.2980751566614276,
-  "vocab_size": 404,
-  "full": {
-   "f1": 0.8155497064183033,
-   "roc_auc": 0.8814239746891065,
-   "chars_deleted": 0.0
+ ],
+ "symmetric": [
+  {
+   "corpus": "CSIC-2010",
+   "panel": "symmetric",
+   "n": 96851,
+   "base_rate": 0.25659001972101475,
+   "vocab_size": 6260,
+   "full": {
+    "f1": 0.980319803198032,
+    "roc_auc": 0.9962268577089926,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.9009244154431756,
+    "roc_auc": 0.9761990385476528,
+    "chars_deleted": 0.13254196622992176,
+    "auc_retained": 0.9596397920624343,
+    "f1_retained": 0.9190107274219596
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.837517115472387,
+    "roc_auc": 0.939330189874753,
+    "chars_deleted": 0.20529400208086046,
+    "auc_retained": 0.8853414180422978,
+    "f1_retained": 0.8543305080038277
+   }
   },
-  "syntax_deleted": {
-   "f1": 0.7439752832131823,
-   "roc_auc": 0.8391348746615215,
-   "chars_deleted": 0.11488464730649195,
-   "auc_retained": 0.8891283641463432,
-   "f1_retained": 0.91223781623384
+  {
+   "corpus": "ECML/PKDD-2007",
+   "panel": "symmetric",
+   "n": 48991,
+   "base_rate": 0.2980751566614276,
+   "vocab_size": 510,
+   "full": {
+    "f1": 0.8177957532861476,
+    "roc_auc": 0.881768065304845,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.7471713639168895,
+    "roc_auc": 0.8376834025878124,
+    "chars_deleted": 0.11488464730649195,
+    "auc_retained": 0.8845250121121823,
+    "f1_retained": 0.9136405525640502
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.3293172690763052,
+    "roc_auc": 0.6169211749273467,
+    "chars_deleted": 0.1484442407946951,
+    "auc_retained": 0.30626232404741377,
+    "f1_retained": 0.40268889603915164
+   }
   },
-  "syntax_and_vocab_deleted": {
-   "f1": 0.5851393188854489,
-   "roc_auc": 0.7442404019225273,
-   "chars_deleted": 0.15049463113939154,
-   "auc_retained": 0.6403383587033413,
-   "f1_retained": 0.7174784250186773
+  {
+   "corpus": "WebInject2026",
+   "panel": "symmetric",
+   "n": 61400,
+   "base_rate": 0.26058631921824105,
+   "vocab_size": 242,
+   "full": {
+    "f1": 0.9518111254851229,
+    "roc_auc": 0.9977264370732052,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.8876071193144364,
+    "roc_auc": 0.9740580600986256,
+    "chars_deleted": 0.2154049266349951,
+    "auc_retained": 0.9524470166508385,
+    "f1_retained": 0.932545434223662,
+    "paired_accuracy": 0.9679268670591881,
+    "paired_ties": 0.0461729160210722
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.6228651798272051,
+    "roc_auc": 0.8247988179331204,
+    "chars_deleted": 0.22530628221038762,
+    "auc_retained": 0.652564930733927,
+    "f1_retained": 0.6543999782622216,
+    "paired_accuracy": 0.8049271769445305,
+    "paired_ties": 0.30647660365664703
+   }
   }
- },
- {
-  "corpus": "WebInject2026",
-  "n": 61400,
-  "base_rate": 0.26058631921824105,
-  "vocab_size": 404,
-  "full": {
-   "f1": 0.9490425186627718,
-   "roc_auc": 0.9974928359298373,
-   "chars_deleted": 0.0
-  },
-  "syntax_deleted": {
-   "f1": 0.8876071193144364,
-   "roc_auc": 0.9740580600986256,
-   "chars_deleted": 0.2154049266349951,
-   "auc_retained": 0.9528942446228176,
-   "f1_retained": 0.9352659147085426,
-   "paired_accuracy": 0.9679268670591881,
-   "paired_ties": 0.0461729160210722
-  },
-  "syntax_and_vocab_deleted": {
-   "f1": 0.14758000528960594,
-   "roc_auc": 0.6059221647686089,
-   "chars_deleted": 0.44123712598279274,
-   "auc_retained": 0.21291193986871285,
-   "f1_retained": 0.15550410270084675,
-   "paired_accuracy": 0.5130151843817787,
-   "paired_ties": 0.9460799504183453
-  }
- }
-]
+ ],
+ "_corpus": "61400rows-0ab08a874581"
+}

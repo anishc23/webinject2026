@@ -421,6 +421,7 @@ def main():
         _print_metrics(f"submission [{args.predictions}] on {split_col}", m)
         results["submission"] = m
         if args.json:
+            results["_corpus"] = S.corpus_fingerprint(csv_path=args.csv)
             json.dump(results, open(args.json, "w"), indent=2)
             S.refresh(args.json)
         return
@@ -504,6 +505,7 @@ def main():
                       f"(n={ev[k]['n']})")
 
     if args.json:
+        results["_corpus"] = S.corpus_fingerprint(csv_path=args.csv)
         json.dump(results, open(args.json, "w"), indent=2)
         print(f"\nwrote {args.json}")
         if S.refresh(args.json):

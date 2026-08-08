@@ -59,6 +59,8 @@ from sklearn.metrics import roc_auc_score
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src import checksums as S  # noqa: E402
+
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
 
@@ -271,6 +273,13 @@ def skeleton_auc(df, name, split_col=None):
         tr = np.zeros(len(df), bool); tr[idx[:cut]] = True
         te = ~tr
 
+    def _scores(texts):
+        v = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5), min_df=3,
+                            max_features=200000)
+        A = v.fit_transform(texts[tr])
+        m = LogisticRegression(max_iter=2000, C=4.0).fit(A, y[tr])
+        return m.predict_proba(v.transform(texts[te]))[:, 1]
+
     def _auc(texts):
         v = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5), min_df=3,
                             max_features=200000)
@@ -278,9 +287,61 @@ def skeleton_auc(df, name, split_col=None):
         m = LogisticRegression(max_iter=2000, C=4.0).fit(A, y[tr])
         return float(roc_auc_score(y[te], m.predict_proba(v.transform(texts[te]))[:, 1]))
 
-    return {"corpus": name,
-            "skeleton_auc": _auc(skel.values),
-            "full_payload_auc": _auc(df.payload.astype(str).values)}
+    out = {"corpus": name,
+           "skeleton_auc": _auc(skel.values),
+           "full_payload_auc": _auc(df.payload.astype(str).values)}
+
+    # Two controls, because the headline number is read wrongly without them.
+    # This corpus is MORE skeleton-separable than the ones it replaces (0.99 vs
+    # 0.91), which alone looks like a worse shortcut. It is the opposite: the
+    # separability lives in injection structure rather than in vocabulary, which
+    # is the profile a corpus built around injection syntax should have. These
+    # two controls are what distinguish that from memorisation.
+    if "pair_id" in df.columns:
+        # (a) Within a matched pair both halves carry identical carrier text and
+        # differ only by the injected span, so a skeleton model scoring the
+        # attack above its twin is reading the injection's shape and nothing
+        # else. No confound from tier mixture or carrier register is possible.
+        sub = df[te].assign(_s=_scores(skel.values))
+        sub = sub[sub.pair_id.astype(str) != ""]
+        if len(sub):
+            piv = sub.pivot_table(index="pair_id", columns="label",
+                                  values="_s", aggfunc="first").dropna()
+            if len(piv) and 0 in piv.columns and 1 in piv.columns:
+                out["within_pair"] = {
+                    "n_pairs": int(len(piv)),
+                    "skeleton_auc": float(roc_auc_score(
+                        np.r_[np.ones(len(piv)), np.zeros(len(piv))],
+                        np.r_[piv[1].values, piv[0].values])),
+                    "attack_above_twin": float((piv[1] > piv[0]).mean()),
+                }
+
+    # (b) The load-bearing control. Refit on template-disjoint train and score
+    # template-disjoint test, so every attack SHAPE at test time is one the
+    # model never saw. A model that had merely memorised this generator's benign
+    # mirror motifs (%25, /**/, [1], 1|2, --7) collapses here; one that learned
+    # injection grammar does not. Reported beside the full-payload model on the
+    # identical split, because the comparison is what makes it interpretable.
+    if "split_struct" in df.columns:
+        s_tr = (df["split_struct"] == "train").values
+        s_te = (df["split_struct"] == "test").values
+        if s_tr.any() and s_te.any() and len(set(y[s_te])) > 1:
+            def _auc_on(texts, a, b):
+                v = TfidfVectorizer(analyzer="char_wb", ngram_range=(2, 5),
+                                    min_df=3, max_features=200000)
+                A = v.fit_transform(texts[a])
+                m = LogisticRegression(max_iter=2000, C=4.0).fit(A, y[a])
+                return float(roc_auc_score(
+                    y[b], m.predict_proba(v.transform(texts[b]))[:, 1]))
+            out["template_disjoint"] = {
+                "skeleton_auc": _auc_on(skel.values, s_tr, s_te),
+                "full_payload_auc": _auc_on(
+                    df.payload.astype(str).values, s_tr, s_te),
+            }
+            out["template_disjoint"]["gap"] = (
+                out["template_disjoint"]["full_payload_auc"]
+                - out["template_disjoint"]["skeleton_auc"])
+    return out
 
 
 # ------------------------------------------------------------- corpora -------
@@ -377,7 +438,34 @@ def main():
         print("\n  A skeleton AUC near the full-payload AUC means the model never needed")
         print("  the payload text: punctuation shape alone carried the label.")
 
+        # The headline row above is read wrongly on its own: this corpus is the
+        # MOST skeleton-separable of the three, which looks like the worse
+        # shortcut until the two controls below are attached.
+        for name, r in results["skeleton"].items():
+            wp, td = r.get("within_pair"), r.get("template_disjoint")
+            if not (wp or td):
+                continue
+            print(f"\n  {name} - controls")
+            if wp:
+                print(f"    within-pair skeleton AUC        {wp['skeleton_auc']:.3f}"
+                      f"   ({wp['n_pairs']:,} pairs; attack above its own twin "
+                      f"{wp['attack_above_twin']*100:.1f}%)")
+                print("      Both halves carry identical carrier text, so this is the")
+                print("      injection's shape and nothing else.")
+            if td:
+                print(f"    template-disjoint skeleton AUC  {td['skeleton_auc']:.3f}"
+                      f"   vs full payload {td['full_payload_auc']:.3f} on the same"
+                      f" split (gap {td['gap']:.3f})")
+                print("      Every attack shape at test time is unseen in training. A")
+                print("      model that had memorised this generator's benign mirror")
+                print("      motifs (%25, /**/, [1], 1|2, --7) would collapse here.")
+        print("\n  Injection is a punctuation phenomenon. This corpus's separability")
+        print("  lives in injection STRUCTURE; CSIC-2010's lives in VOCABULARY")
+        print("  (skeleton 0.906, yet it keeps ~89-94% of its separation once the")
+        print("  vocabulary is deleted -- see src.syntax_ablation).")
+
     if args.json:
+        results["_corpus"] = S.corpus_fingerprint(csv_path=args.csv)
         json.dump(results, open(args.json, "w"), indent=2)
         print(f"\nwrote {args.json}")
 

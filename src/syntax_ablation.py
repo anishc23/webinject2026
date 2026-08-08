@@ -34,11 +34,40 @@ separable by something that is not the attack -- and whatever that something is,
 a detector trained on it has learned the corpus, not the threat. A corpus that
 falls to chance was carrying its signal in the injection.
 
-The deleted vocabulary is one fixed list applied identically to all three
-corpora, so the comparison is like-for-like. It is derived from this corpus's
-payload pool, which if anything understates the effect on the others: it deletes
-every attack word this corpus knows about, and CSIC-2010 or ECML/PKDD-2007 may
-use attack vocabulary it does not contain.
+Two panels ship, and neither is "the real one". They answer different
+questions and the honest reading needs both.
+
+  pool       the deletion vocabulary is one fixed list -- every alphabetic token
+             in `corpus/payloads.json` -- applied identically to all three
+             corpora. It is exhaustive on this corpus by construction and only
+             partial on the others, because it can only delete attack words this
+             corpus happens to know. It therefore measures the UPPER BOUND on
+             what a complete deletion removes, and it flatters our conclusion:
+             it deletes 22% of our characters and 20%/15% of CSIC's and ECML's.
+
+  symmetric  the deletion vocabulary is derived independently for each corpus
+             from its OWN training attack rows -- a token is deleted when it is
+             at least 5x more likely to appear in an attack row than a benign
+             one. Deletion aggression is then matched across corpora rather than
+             assumed, which is the control a reviewer builds first.
+
+The symmetric panel is less favourable to this corpus, and that is reported
+rather than buried: under it WebInject2026 retains more of its separation than
+ECML/PKDD-2007 does. The defensible claim spans both panels -- CSIC-2010 retains
+the most under either, and this corpus retains between a fifth and three fifths
+depending on how completely the injection can be removed.
+
+One caveat is measurable here and nowhere else, and it matters for reading the
+symmetric panel. Matched deletion *aggression* is not matched deletion
+*completeness*: a 5x-lift rule is a statistic, not ground truth, so it leaves
+injection residue behind. On this corpus that residue can be quantified, because
+each attack has a twin identical but for the injected span. With the pool
+vocabulary deleted, a model scores an attack above its own twin 51% of the time
+-- chance, so nothing of the injection survives. With the symmetric vocabulary
+deleted it still manages 81%, so a fifth to a third of the injection is still
+there. Part of the higher retention under the symmetric panel is therefore
+incomplete deletion rather than non-injection signal. Neither corpus without
+pairs can be checked this way, which is why both panels ship rather than one.
 
 All conditions use the same model, features and split. Splits: WebInject2026
 uses its own payload-disjoint `split` column; CSIC-2010 and ECML/PKDD-2007 ship
@@ -51,6 +80,7 @@ import json
 import os
 import re
 import sys
+from collections import Counter
 import warnings
 
 import numpy as np
@@ -63,6 +93,8 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.model_selection import train_test_split
+
+from src import checksums as S  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -85,6 +117,34 @@ def pool_words():
     pool = json.load(open(path, encoding="utf-8"))
     return {w.lower() for ps in pool.values() for p in ps
             for w in WORD.findall(p)}
+
+
+
+VOCAB_LIFT = 5.0
+
+
+def derive_vocab(text, y, tr):
+    """Tokens a corpus's own training attacks over-use, relative to its benigns.
+
+    Presence per row, not frequency: a token counts once however often it occurs
+    in a row, so a single repeated word cannot dominate. A token is deleted when
+
+        P(token | attack row) >= VOCAB_LIFT * P(token | benign row)
+
+    with add-one smoothing on the benign side so a token absent from every benign
+    row is not automatically admitted on a single attack occurrence.
+
+    Derived from TRAIN rows only, then applied to train and test alike, so the
+    deletion cannot leak test-set information into the fit.
+    """
+    na = max(1, int(y[tr].sum()))
+    nb = max(1, int((1 - y[tr]).sum()))
+    ca, cb = Counter(), Counter()
+    for s, lab in zip(text[tr], y[tr]):
+        toks = {w.lower() for w in WORD.findall(s)}
+        (ca if lab == 1 else cb).update(toks)
+    return {w for w, n in ca.items()
+            if n / na >= VOCAB_LIFT * ((cb.get(w, 0) + 1) / nb)}
 
 
 def strip_vocab(s, vocab):
@@ -132,8 +192,10 @@ CORPORA = [("csic_parsed", "CSIC-2010"),
            ("webinject2026", "WebInject2026")]
 
 
-def run(fast=False):
-    vocab = pool_words()
+def run(fast=False, panel="pool"):
+    """One panel of Table 1. `panel` selects where the deleted vocabulary comes
+    from: the fixed payload pool, or each corpus's own training attacks."""
+    pool = pool_words()
     rows = []
     for key, label in CORPORA:
         d, tr, te = _load(key)
@@ -142,12 +204,13 @@ def run(fast=False):
             continue
         text = d["payload"].astype(str)
         y = d["label"].to_numpy()
+        vocab = pool if panel == "pool" else derive_vocab(text, y, tr)
         conds = {"full": text,
                  "syntax_deleted": text.map(strip_syntax),
                  "syntax_and_vocab_deleted": text.map(lambda s: strip_vocab(s, vocab))}
 
-        rec = {"corpus": label, "n": int(len(d)), "base_rate": float(y.mean()),
-               "vocab_size": len(vocab)}
+        rec = {"corpus": label, "panel": panel, "n": int(len(d)),
+               "base_rate": float(y.mean()), "vocab_size": len(vocab)}
         scores = {}
         for cond, t in conds.items():
             rec[cond], scores[cond] = _fit(t[tr], y[tr], t[te], y[te])
@@ -205,27 +268,73 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--json", default=None)
     ap.add_argument("--fast", action="store_true")
+    ap.add_argument("--panel", default="both",
+                    choices=["pool", "symmetric", "both"])
     args = ap.parse_args()
 
-    print("=" * 78)
-    print("Table 1 - detection performance after deleting the injection")
-    print("  -syntax        every character that is not a letter or a space")
-    print("  -syntax -vocab  ... and every word in the payload pool")
-    print("'kept' is AUC above chance, as a share of the full model's")
-    print("=" * 78)
-    rows = run(fast=args.fast)
-    print(_table(rows))
-    print()
-    for r in rows:
-        b = r["syntax_and_vocab_deleted"]
-        print(f"  {r['corpus']:<16} base rate {r['base_rate']:.3f}; "
-              f"{b['chars_deleted']*100:.0f}% of characters deleted at -syntax -vocab")
-        if "paired_accuracy" in b:
-            print(f"  {'':<16} matched-pair accuracy with the injection deleted "
-                  f"{b['paired_accuracy']*100:.1f}% ({b['paired_ties']*100:.1f}% "
-                  f"ties) -- chance is 50%")
+    panels = (["pool", "symmetric"] if args.panel == "both" else [args.panel])
+    out = {}
+    for panel in panels:
+        blurb = ("one fixed list from corpus/payloads.json, applied to all three"
+                 if panel == "pool" else
+                 "derived per corpus from its own training attacks (>=5x lift)")
+        print("=" * 78)
+        print(f"Table 1 [{panel}] - performance after deleting the injection")
+        print(f"  deleted vocabulary: {blurb}")
+        print("  -syntax        every character that is not a letter or a space")
+        print("  -syntax -vocab  ... and every word in that vocabulary")
+        print("'kept' is AUC above chance, as a share of the full model's")
+        print("=" * 78)
+        rows = run(fast=args.fast, panel=panel)
+        out[panel] = rows
+        print(_table(rows))
+        print()
+        for r in rows:
+            b = r["syntax_and_vocab_deleted"]
+            print(f"  {r['corpus']:<16} base rate {r['base_rate']:.3f}; vocab "
+                  f"{r['vocab_size']:,}; {b['chars_deleted']*100:.0f}% of "
+                  f"characters deleted at -syntax -vocab")
+            if "paired_accuracy" in b:
+                print(f"  {'':<16} matched-pair accuracy with the injection "
+                      f"deleted {b['paired_accuracy']*100:.1f}% "
+                      f"({b['paired_ties']*100:.1f}% ties) -- chance is 50%")
+        print()
+
+    if len(out) > 1:
+        print("=" * 78)
+        print("Both panels, AUC above chance retained at -syntax -vocab")
+        print("=" * 78)
+        names = [r["corpus"] for r in out["pool"]]
+        print(f"  {'corpus':<18}{'pool':>10}{'symmetric':>12}{'chars del':>22}")
+        for name in names:
+            p = next(r for r in out["pool"] if r["corpus"] == name)
+            q = next(r for r in out["symmetric"] if r["corpus"] == name)
+            pk = p["syntax_and_vocab_deleted"]["auc_retained"] * 100
+            qk = q["syntax_and_vocab_deleted"]["auc_retained"] * 100
+            pc_ = p["syntax_and_vocab_deleted"]["chars_deleted"] * 100
+            qc = q["syntax_and_vocab_deleted"]["chars_deleted"] * 100
+            print(f"  {name:<18}{pk:>9.0f}%{qk:>11.0f}%"
+                  f"{f'{pc_:.0f}% / {qc:.0f}%':>22}")
+        print("  The pool panel is the upper bound on what a complete deletion")
+        print("  removes; the symmetric panel matches deletion aggression across")
+        print("  corpora. Neither alone is the result.")
+        # Completeness, not just aggression -- measurable only where pairs exist.
+        for pname in ("pool", "symmetric"):
+            w = next((r for r in out[pname]
+                      if r["corpus"] == "WebInject2026"), None)
+            pa = w and w["syntax_and_vocab_deleted"].get("paired_accuracy")
+            if pa is not None:
+                print(f"  {pname:<10} injection residue check: attack still beats its "
+                      f"own twin {pa*100:.0f}% of the time (chance 50%)")
+        print("  Matched aggression is not matched completeness: the symmetric rule")
+        print("  is a statistic, so it leaves injection behind. Only a paired corpus")
+        print("  can measure that, which is part of why both panels ship.")
+
     if args.json:
-        json.dump(rows, open(args.json, "w"), indent=1)
+        payload = out if len(out) > 1 else out[panels[0]]
+        if isinstance(payload, dict):
+            payload["_corpus"] = S.corpus_fingerprint()
+        json.dump(payload, open(args.json, "w"), indent=1)
         print(f"\nwrote {args.json}")
 
 

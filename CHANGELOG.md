@@ -1,5 +1,99 @@
 # Changelog
 
+## 4.5.0 - a symmetric control for Table 1; the skeleton result gets its controls
+
+Two audit findings closed, plus a third defect found while closing them. No
+change to the corpus: this release is analysis, controls and provenance, and the
+CSV is byte-identical to 4.4.0.
+
+### Fixed
+- **Table 1 was asymmetric, and the asymmetry favoured us.** The deletion
+  vocabulary came from this corpus's payload pool and was applied unchanged to
+  all three corpora, so it was exhaustive here and partial elsewhere: 44% of
+  our characters deleted against 20% of CSIC-2010's and 15% of
+  ECML/PKDD-2007's. The module printed that line itself, so any reviewer reading
+  it would have built the control.
+
+  A **symmetric panel** now derives the vocabulary independently for each corpus
+  from its own training attack rows -- a token is deleted when it is at least 5x
+  more likely in an attack row than a benign one, presence per row, train rows
+  only. Deletion aggression is matched (23% / 21% / 15%).
+
+  | corpus | chars del | full AUC | scrubbed AUC | AUC kept |
+  |---|--:|--:|--:|--:|
+  | CSIC-2010 | 21% | 0.996 | 0.939 | 89% |
+  | WebInject2026 | 23% | 0.998 | 0.825 | 65% |
+  | ECML/PKDD-2007 | 15% | 0.882 | 0.617 | 31% |
+
+  **Under this control we rank behind ECML/PKDD-2007** (65% against
+  31%). That is the honest result and it is reported, not buried. Both
+  panels ship and neither is "the real one": the pool panel is the upper bound
+  on what a complete deletion removes, the symmetric panel is the
+  matched-aggression comparison. The claim the two jointly support is that
+  CSIC-2010 retains 89-94% of its above-chance separation with no
+  injection present, while this corpus retains 21-65% depending on how
+  completely the injection can be removed.
+
+  **Found while building it, and not in the brief:** matched deletion aggression
+  is not matched deletion *completeness*. A 5x-lift rule is a statistic, not
+  ground truth, so it leaves injection residue. The pairs make that measurable
+  here and nowhere else -- with the pool vocabulary deleted a model scores an
+  attack above its own twin 51% of the time (chance), but with the
+  symmetric vocabulary deleted it still manages 80%. Part of our higher
+  retention under the symmetric panel is therefore incomplete deletion rather
+  than non-injection signal.
+
+- **The skeleton result shipped without its controls.** A model given only the
+  punctuation shape scores 0.991 here against 0.906 (CSIC-2010) and
+  0.910 (ECML/PKDD-2007) -- read alone, that says we are the more
+  shortcut-prone corpus. Two controls now ship beside it:
+  - **within-pair** 0.996, attack above its own twin in
+    99.4% of 3,227 pairs. Both halves carry identical carrier
+    text, so this is the injection's shape and nothing else.
+  - **template-disjoint** 0.976 against 0.983 for the full payload
+    on the same split. Every attack shape at test time is unseen in training, so
+    a model that had memorised this generator's benign mirror motifs (`%25`,
+    `/**/`, `[1]`, `1|2`, `--7`) would collapse. It reaches 99% of
+    full-payload performance instead.
+
+  The reading, now in README and DATASHEET: injection is a punctuation
+  phenomenon, so separability living in punctuation structure is the right
+  profile. This corpus's lives in structure (skeleton 0.991,
+  vocabulary-stripped 0.606); CSIC-2010's lives in vocabulary (skeleton
+  0.906, vocabulary-stripped 0.966).
+
+- **Stale results have shipped four times and nothing could catch it.** v4.4.0's
+  `baselines.json` and `evaluation.json` do not match the corpus v4.4.0 shipped:
+  disjoint recall 0.87822 against an actual 0.87853, and 84 and 116 other values.
+  Confirmed rather than assumed -- two runs of each module on one corpus are
+  byte-identical, so the drift is not nondeterminism. SHA256SUMS cannot catch
+  this: a result regenerated from an older build is internally consistent and
+  hashes correctly, so the manifest passes while the numbers describe a corpus
+  that is no longer shipped, and the drift is small enough that review never
+  notices.
+
+### Added
+- **`skeleton_generalises`** (6th construction check): the template-disjoint
+  skeleton AUC must stay within 0.10 of the template-disjoint full-payload AUC,
+  so the skeleton signal cannot become split-specific memorisation unnoticed.
+  Currently a gap of 0.006.
+- **`results_match_corpus`** (7th): every result JSON now carries a `_corpus`
+  fingerprint of the corpus it was computed against, and the build fails if any
+  disagrees or is unstamped. This is the systemic fix for the defect above --
+  the mechanism `src.model_zoo` already had, extended to `baselines`,
+  `evaluation`, `shortcut_stats`, `separability` and `syntax_ablation`.
+  The gate is now 32 checks (25 validation + 7 construction).
+- `--panel pool|symmetric|both` on `src.syntax_ablation`; both panels ship in
+  `data/syntax_ablation.json` and in the explainer PDF as Table 1 and Table 1b.
+
+### Changed
+- Reference char n-gram, payload-disjoint: F1 93.4,
+  TPR@0.1%FPR 87.9; structural
+  50.8. Unchanged corpus, corrected numbers.
+- `CITATION.cff` 4.5.0. The three unresolved author facts are now explicit
+  `TODO(owner):` markers rather than commented-out fields, so they cannot be
+  mistaken for filled in.
+
 ## 4.4.0 - the structural protocol is no longer inventory-limited
 
 The template-disjoint split is where the paper's most interesting generalisation

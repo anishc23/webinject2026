@@ -47,7 +47,7 @@ jobs:
 
       # Promoted from advisory to blocking in v4.0.0: all four construction
       # checks pass, so a regression in any of them now fails the build.
-      - name: Construction checks (register, splits, sessions, pairs, transfer)
+      - name: Construction checks (register, splits, sessions, pairs, skeleton, provenance, transfer)
         run: python -m src.audit_gaps
 
       - name: Single-character shortcut statistics

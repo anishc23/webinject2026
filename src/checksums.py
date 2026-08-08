@@ -40,6 +40,35 @@ FILES = [
 ]
 
 
+def corpus_fingerprint(df=None, csv_path=None):
+    """Fingerprint of the corpus a result file was computed against.
+
+    SHA256SUMS answers "are these the bytes that were published"; it cannot
+    answer "was this result computed against this corpus", because a result file
+    regenerated from an older build is internally consistent and hashes fine.
+    That distinction has now let stale results ship four times -- v4.0.0, v4.3.0,
+    v4.4.0 twice -- each time with the manifest passing.
+
+    So every result writer stamps this into its JSON under `_corpus`, and
+    `src.audit_gaps` fails the build when a stamp disagrees with the shipped
+    corpus. Same construction as `src.model_zoo.corpus_id`, and deliberately over
+    the columns a result could depend on rather than the whole frame, so an
+    unrelated column addition does not invalidate every stored result.
+    """
+    import hashlib
+    import pandas as pd
+    if df is None:
+        df = pd.read_csv(csv_path or os.path.join(ROOT, "data",
+                                                  "webinject2026.csv"),
+                         keep_default_na=False, dtype=str)
+    df = df.copy()
+    df["label"] = df["label"].astype(int)
+    h = hashlib.sha256()
+    for col in ("payload", "label", "split", "split_struct"):
+        h.update(pd.util.hash_pandas_object(df[col], index=False).values.tobytes())
+    return f"{len(df)}rows-{h.hexdigest()[:12]}"
+
+
 def sha256(path):
     """Hash a file in chunks — the corpus CSV is ~80 MB."""
     h = hashlib.sha256()

@@ -3,7 +3,7 @@
 A contemporary, leakage-audited corpus for **web-application injection-attack
 detection**. 61,400 labelled HTTP requests across three applications and fourteen
 attack families, shipped with fixed payload-disjoint **and** template-disjoint
-splits and an automated 30-check quality gate that fails the build if any known
+splits and an automated 32-check quality gate that fails the build if any known
 shortcut or leak reappears.
 
 > **v3.0 rebuild.** v2.1 made the *attack* side rigorous but left two measurable
@@ -49,7 +49,22 @@ shortcut or leak reappears.
 > almost entirely on one over-represented SSRF metadata URL; the floor is now
 > carried across the taxonomy (verbatim-ambiguous specimens widened 26 -> 39).
 > Corpus rebuilt; the structural gap widened as expected (TPR@0.1%FPR
-> 87.6 -> 52.5, a 35.1-point gap). See [CHANGELOG.md](CHANGELOG.md).
+> 87.9 -> 50.8, a 37.0-point gap). See [CHANGELOG.md](CHANGELOG.md).
+
+> **v4.5 pre-submission pass.** Two audit findings closed. Table 1's deletion
+> vocabulary came from *our* payload pool and was applied to all three corpora,
+> so it deleted 44% of our characters against 20% and 15% of theirs —
+> exhaustive here, partial there, and flattering to us. A **symmetric panel**
+> now derives the vocabulary per corpus from its own training attacks, matching
+> deletion aggression (23% / 21% / 15%). Under it we retain
+> 65% of our above-chance separation against ECML/PKDD-2007's 31% —
+> **we rank behind ECML**, reported rather than buried. Both panels ship.
+> Separately, the punctuation-skeleton result now carries its two controls
+> (within-pair 0.996; template-disjoint 0.976 against
+> 0.983 full payload), and `skeleton_generalises` gates the second.
+> A seventh construction check, `results_match_corpus`, stamps every result file
+> with the corpus fingerprint it was computed against — stale results have
+> shipped four times and checksums cannot catch it. See [CHANGELOG.md](CHANGELOG.md).
 
 New to the problem, or preparing a talk on it?
 [**Understanding_WebInject2026.pdf**](Understanding_WebInject2026.pdf) explains
@@ -91,7 +106,7 @@ python -m src.shortcut_stats  # per-character chi2 / Cramer V / odds ratio vs CS
 python -m src.syntax_ablation # Table 1: what survives deleting the injection, all 3 corpora
 python -m src.build          # rebuild the corpus offline (reproducible, seed=42)
 python -m src.validate       # 25-check quality gate; non-zero exit on any FAIL
-python -m src.audit_gaps     # 5 construction checks (register, splits, sessions, pairs, transfer)
+python -m src.audit_gaps     # 7 construction checks (register, splits, sessions, pairs, skeleton, provenance, transfer)
 python -m src.baselines      # reference results table
 python -m src.evaluate       # generalisation protocols + prevalence correction
 python -m src.figures        # the eight paper figures, from the shipped result JSONs
@@ -134,14 +149,14 @@ group-bootstrap CIs, and cross-dataset transfer. Payload-disjoint headline:
 | special-char count (1 feature) | **0.0** | 28.8 | 0.4 | **0.0** |
 | rule signature (14 regex) | 63.3 | 54.8 | 0.7 | 0.0 |
 | word n-gram (1–2) + LogReg | 53.2 | 74.0 | 26.8 | 16.5 |
-| char n-gram (3–5) + LogReg | **93.4** | 99.4 | 97.1 | **87.6** |
+| char n-gram (3–5) + LogReg | **93.4** | 99.4 | 97.2 | **87.9** |
 
-The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 16.5 → 87.6** across
+The ranking signal is the last column: **TPR@0.1%FPR spans 0 → 16.5 → 87.9** across
 baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
 
-- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 87.1 on a random
-  split, **87.6 on the payload-disjoint split, and 52.5 on the template-disjoint
-  (`split_struct`) split** — a 35.1-point structural gap. Report all three.
+- **Two generalisation gaps.** The char n-gram's TPR@0.1%FPR is 85.8 on a random
+  split, **87.9 on the payload-disjoint split, and 50.8 on the template-disjoint
+  (`split_struct`) split** — a 37.0-point structural gap. Report all three.
 - **Prevalence matters.** At the corpus's 25% attack rate the char n-gram's
   precision at 1% FPR is 97.1%; at a realistic **0.5% prevalence it is 32.8%**, and
   49.5% at 1%. Report the precision at *your* operating prevalence —
@@ -196,6 +211,32 @@ scoring identically.** Chance is 50%. With the injection removed there is
 nothing left to separate a pair, which is the property the paired protocol
 asserts, measured rather than assumed.
 
+### Is the skeleton result a shortcut? Two controls say no
+
+`src.separability` collapses every alphanumeric run to `#`, leaving only
+punctuation shape. This corpus scores **0.991** there against
+**0.906** (CSIC-2010) and **0.910** (ECML/PKDD-2007). Read alone
+that says we are *more* shortcut-prone than the corpora we replace. Two controls
+show the opposite, and both ship in `data/separability.json`:
+
+| Control | Result | What it rules out |
+|---|--:|---|
+| Within-pair skeleton AUC | **0.996** (99.4% of pairs) | Both halves carry identical carrier text, so this is the injection's shape and nothing else |
+| Template-disjoint skeleton AUC | **0.976** vs 0.983 full payload | Every attack shape at test is unseen in training — memorised mirror motifs would collapse here |
+
+The second is load-bearing and is gated (`skeleton_generalises`): the skeleton
+model reaches **99%** of full-payload performance on shapes it never
+saw, so it has learned injection grammar rather than this generator's benign
+mirror motifs (`%25`, `/**/`, `[1]`, `1|2`).
+
+The profile, stated plainly: **injection is a punctuation phenomenon.** This
+corpus's separability lives in injection *structure* (skeleton 0.991,
+vocabulary-stripped 0.606); CSIC-2010's lives in *vocabulary*
+(skeleton 0.906, yet it keeps 94% of its separation once the
+vocabulary is gone). Being more skeleton-separable while far less
+vocabulary-separable is exactly the profile a corpus built around injection
+syntax should have.
+
 ## No single character predicts the label
 
 Asserting that benign traffic "also contains quotes" is worth nothing. `python -m
@@ -243,7 +284,7 @@ Full data — 43,028 training rows (`data/model_zoo.json`, classical + deep):
 
 | Model | Family | F1 | TPR@0.1%FPR | structural | paired acc | carrier-only AUC |
 |---|---|--:|--:|--:|--:|--:|
-| LogisticRegression | classical | 93.4 | 87.6 | 52.5 | 99.9 | 0.575 |
+| LogisticRegression | classical | 93.4 | 87.9 | 50.8 | 100.0 | 0.575 |
 | RandomForest | classical | 86.4 | 56.2 | 32.9 | 99.7 | 0.567 |
 | LinearSVM | classical | 94.5 | 90.6 | 59.3 | 100.0 | 0.577 |
 | XGBoost | classical | **97.1** | **95.0** | 61.7 | 99.8 | 0.566 |
@@ -320,7 +361,7 @@ different build, so a table never silently mixes two corpora.
 Every protocol reports precision corrected to 0.5% / 1% / 5% / 26% attack
 prevalence. Reference char n-gram, payload-disjoint test:
 
-- **Structural gap.** TPR@0.1%FPR falls **87.6 → 52.5** from the payload-disjoint
+- **Structural gap.** TPR@0.1%FPR falls **87.9 → 50.8** from the payload-disjoint
   to the template-disjoint split (35.1 pts) — the model leans on template shape.
 - **Zero-shot (LOFO) recall spans 7.1 → 69.8%.** A model that never saw the family
   barely flags cmdi (7.1%) or sqli (7.4%), but transfers to smuggle (69.8%)
@@ -365,7 +406,7 @@ python -m src.evaluate --predictions my_scores.(csv|parquet|npy)
 ## What the quality gate enforces
 
 `python -m src.validate` fails the build unless every one of 25 checks passes, and
-`python -m src.audit_gaps` adds five construction checks that are equally blocking in CI:
+`python -m src.audit_gaps` adds seven construction checks that are equally blocking in CI:
 
 - **ratio / duplicates / length_gap** — balance, no repeated payloads, benign vs attack median length within 15%
 - **char_class** — benign and attack share a character alphabet (≤3 attack-only characters)
@@ -397,7 +438,7 @@ src/validate.py    the 25-check quality gate
 src/baselines.py   reference results: F1/PR-AUC/TPR@FPR, prevalence-corrected precision, slice recall, bootstrap CIs, cross-dataset
 src/evaluate.py    protocols (disjoint/structural/LOFO/evasion), prevalence correction, submission scorer (--predictions)
 src/checksums.py   writes/verifies SHA256SUMS; --check is a CI gate
-src/audit_gaps.py  five construction checks (register/splits/sessions/pairs/transfer); blocking in CI
+src/audit_gaps.py  seven construction checks (register/splits/sessions/pairs/skeleton/provenance/transfer); blocking in CI
 src/shortcut_stats.py  per-character shortcut statistics against CSIC-2010 and ECML/PKDD; blocking in CI
 src/syntax_ablation.py Table 1: retrain each corpus with the injection deleted, and see what survives
 src/model_zoo.py   detector sweep across classical / deep / transformer, same splits, same ablations, both training budgets

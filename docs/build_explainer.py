@@ -250,7 +250,10 @@ def sec_why_corpora(abl, story):
         "same model on the same split, and see how much detection performance "
         "survives. If a lot survives, the model was never reading the attack.")
 
-    by = {d["corpus"]: d for d in abl}
+    # 4.5.0 ships two panels; older files were a bare list of the pool panel.
+    panels = abl if isinstance(abl, dict) else {"pool": abl}
+    by = {d["corpus"]: d for d in panels["pool"]}
+    sym = {d["corpus"]: d for d in panels.get("symmetric", [])}
     order = ["CSIC-2010", "ECML/PKDD-2007", "WebInject2026"]
     header = ["Corpus", "full F1", "full AUC", "-inj F1", "-inj AUC", "AUC kept"]
     rows = [header]
@@ -278,6 +281,49 @@ def sec_why_corpora(abl, story):
         f"{pct(wi['syntax_and_vocab_deleted']['auc_retained'],0)}%: delete the "
         "attack and the signal is gone, which is the property a detection "
         "corpus should have.", "cap"))
+    if sym:
+        story.append(Spacer(1, 0.3 * cm))
+        story.append(P("The same test with deletion matched across corpora", "h2"))
+        story += layered(
+            "That first table used one list of attack words -- ours -- on all "
+            "three corpora. It deletes more from ours than from theirs, which "
+            "helps our conclusion. So here is the same test with the word list "
+            "built separately for each corpus from its own attacks.",
+            "A word is deleted when it is at least five times more likely to "
+            "appear in an attack than in a benign request, derived from training "
+            "rows only. Each corpus is now scrubbed about as hard as the others "
+            "-- roughly a fifth of its characters -- so the comparison is fair.",
+            "Under this control our corpus no longer comes last, and that is "
+            "reported rather than buried. Both panels ship: the first is the "
+            "upper bound on what a complete deletion removes, the second is the "
+            "matched-aggression comparison.")
+        rows2 = [["Corpus", "vocab", "chars cut", "full AUC", "-inj AUC", "AUC kept"]]
+        for c in order:
+            d = sym.get(c)
+            if not d:
+                continue
+            sv = d["syntax_and_vocab_deleted"]
+            rows2.append([c, f"{d['vocab_size']:,}",
+                          pct(sv["chars_deleted"], 0) + "%",
+                          f"{d['full']['roc_auc']:.3f}", f"{sv['roc_auc']:.3f}",
+                          pct(sv["auc_retained"], 0) + "%"])
+        story.append(table(rows2, col_widths=[4.4 * cm, 2.2 * cm, 2.2 * cm,
+                                              2.2 * cm, 2.2 * cm, 2.2 * cm],
+                           highlight_last_col=True))
+        w2, c2 = sym.get("WebInject2026"), sym.get("CSIC-2010")
+        e2 = sym.get("ECML/PKDD-2007")
+        if w2 and c2 and e2:
+            story.append(P(
+                "Table 1b. With deletion matched, CSIC-2010 still keeps the most "
+                f"({pct(c2['syntax_and_vocab_deleted']['auc_retained'],0)}%), but "
+                f"WebInject2026 keeps {pct(w2['syntax_and_vocab_deleted']['auc_retained'],0)}% "
+                f"against ECML/PKDD-2007's {pct(e2['syntax_and_vocab_deleted']['auc_retained'],0)}% "
+                "-- we rank behind ECML here. The claim the two panels jointly "
+                "support is that CSIC-2010 retains most of its separation without "
+                "any injection present, while this corpus retains between a fifth "
+                "and three fifths depending on how completely the attack can be "
+                "deleted.", "cap"))
+
     pa = wi["syntax_and_vocab_deleted"].get("paired_accuracy")
     if pa is not None:
         story.append(P(

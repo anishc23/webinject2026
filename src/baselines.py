@@ -382,6 +382,7 @@ def main():
         print("  distribution does not transfer unchanged. Report both.")
 
     if args.json:
+        results["_corpus"] = S.corpus_fingerprint(csv_path=args.csv)
         json.dump(results, open(args.json, "w"), indent=2)
         print(f"\nwrote {args.json}")
         if S.refresh(args.json):
