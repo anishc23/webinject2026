@@ -1,0 +1,22 @@
+{
+  "source": {
+    "corpus": "WebInject2026",
+    "skeleton_auc_in_domain": 0.9926700894233239,
+    "full_auc_in_domain": 0.9974928359298373,
+    "n_train": 43028
+  },
+  "csic_parsed": {
+    "corpus": "CSIC-2010",
+    "n": 96851,
+    "base_rate": 0.25659001972101475,
+    "skeleton_transfer_auc": 0.3463722513960985,
+    "full_transfer_auc": 0.5749241691593006
+  },
+  "ecml_parsed": {
+    "corpus": "ECML/PKDD-2007",
+    "n": 48991,
+    "base_rate": 0.2980751566614276,
+    "skeleton_transfer_auc": 0.5914817596767284,
+    "full_transfer_auc": 0.7567090520334349
+  }
+}

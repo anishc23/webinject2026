@@ -52,7 +52,9 @@ from src import checksums as S  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
-TARGET_PREVALENCES = [0.005, 0.01, 0.05, 0.254]
+# See the note in src/baselines.py: 0.254 matched neither the corpus base rate
+# nor the test split's. The payload-disjoint test split is 26.24% attack.
+TARGET_PREVALENCES = [0.005, 0.01, 0.05, 0.2624]
 
 
 # ---------------------------------------------------------------- model ------

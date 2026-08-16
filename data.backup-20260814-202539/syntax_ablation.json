@@ -1,0 +1,171 @@
+{
+ "pool": [
+  {
+   "corpus": "CSIC-2010",
+   "panel": "pool",
+   "n": 96851,
+   "base_rate": 0.25659001972101475,
+   "vocab_size": 404,
+   "full": {
+    "f1": 0.980319803198032,
+    "roc_auc": 0.9962268577089926,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.9009244154431756,
+    "roc_auc": 0.9761990385476528,
+    "chars_deleted": 0.13254196622992176,
+    "auc_retained": 0.9596397920624343,
+    "f1_retained": 0.9190107274219596
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.8816443805945409,
+    "roc_auc": 0.9662364297583292,
+    "chars_deleted": 0.20252318542210068,
+    "auc_retained": 0.9395630698243043,
+    "f1_retained": 0.8993436404308177
+   }
+  },
+  {
+   "corpus": "ECML/PKDD-2007",
+   "panel": "pool",
+   "n": 48991,
+   "base_rate": 0.2980751566614276,
+   "vocab_size": 404,
+   "full": {
+    "f1": 0.8177957532861476,
+    "roc_auc": 0.881768065304845,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.7471713639168895,
+    "roc_auc": 0.8376834025878124,
+    "chars_deleted": 0.11488464730649195,
+    "auc_retained": 0.8845250121121823,
+    "f1_retained": 0.9136405525640502
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.5876379690949227,
+    "roc_auc": 0.7439314022780162,
+    "chars_deleted": 0.15049463113939154,
+    "auc_retained": 0.6389518255887511,
+    "f1_retained": 0.7185632436138459
+   }
+  },
+  {
+   "corpus": "WebInject2026",
+   "panel": "pool",
+   "n": 61400,
+   "base_rate": 0.26058631921824105,
+   "vocab_size": 404,
+   "full": {
+    "f1": 0.9518111254851229,
+    "roc_auc": 0.9977264370732052,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.8876071193144364,
+    "roc_auc": 0.9740580600986256,
+    "chars_deleted": 0.2154049266349951,
+    "auc_retained": 0.9524470166508385,
+    "f1_retained": 0.932545434223662,
+    "paired_accuracy": 0.9679268670591881,
+    "paired_ties": 0.0461729160210722
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.14758000528960594,
+    "roc_auc": 0.6059222330930147,
+    "chars_deleted": 0.44123712598279274,
+    "auc_retained": 0.21281214981440857,
+    "f1_retained": 0.15505177585982383,
+    "paired_accuracy": 0.5130151843817787,
+    "paired_ties": 0.9460799504183453
+   }
+  }
+ ],
+ "symmetric": [
+  {
+   "corpus": "CSIC-2010",
+   "panel": "symmetric",
+   "n": 96851,
+   "base_rate": 0.25659001972101475,
+   "vocab_size": 6260,
+   "full": {
+    "f1": 0.980319803198032,
+    "roc_auc": 0.9962268577089926,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.9009244154431756,
+    "roc_auc": 0.9761990385476528,
+    "chars_deleted": 0.13254196622992176,
+    "auc_retained": 0.9596397920624343,
+    "f1_retained": 0.9190107274219596
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.837517115472387,
+    "roc_auc": 0.939330189874753,
+    "chars_deleted": 0.20529400208086046,
+    "auc_retained": 0.8853414180422978,
+    "f1_retained": 0.8543305080038277
+   }
+  },
+  {
+   "corpus": "ECML/PKDD-2007",
+   "panel": "symmetric",
+   "n": 48991,
+   "base_rate": 0.2980751566614276,
+   "vocab_size": 510,
+   "full": {
+    "f1": 0.8177957532861476,
+    "roc_auc": 0.881768065304845,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.7471713639168895,
+    "roc_auc": 0.8376834025878124,
+    "chars_deleted": 0.11488464730649195,
+    "auc_retained": 0.8845250121121823,
+    "f1_retained": 0.9136405525640502
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.3293172690763052,
+    "roc_auc": 0.6169211749273467,
+    "chars_deleted": 0.1484442407946951,
+    "auc_retained": 0.30626232404741377,
+    "f1_retained": 0.40268889603915164
+   }
+  },
+  {
+   "corpus": "WebInject2026",
+   "panel": "symmetric",
+   "n": 61400,
+   "base_rate": 0.26058631921824105,
+   "vocab_size": 242,
+   "full": {
+    "f1": 0.9518111254851229,
+    "roc_auc": 0.9977264370732052,
+    "chars_deleted": 0.0
+   },
+   "syntax_deleted": {
+    "f1": 0.8876071193144364,
+    "roc_auc": 0.9740580600986256,
+    "chars_deleted": 0.2154049266349951,
+    "auc_retained": 0.9524470166508385,
+    "f1_retained": 0.932545434223662,
+    "paired_accuracy": 0.9679268670591881,
+    "paired_ties": 0.0461729160210722
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.6228651798272051,
+    "roc_auc": 0.8247988179331204,
+    "chars_deleted": 0.22530628221038762,
+    "auc_retained": 0.652564930733927,
+    "f1_retained": 0.6543999782622216,
+    "paired_accuracy": 0.8049271769445305,
+    "paired_ties": 0.30647660365664703
+   }
+  }
+ ],
+ "_corpus": "61400rows-0ab08a874581"
+}

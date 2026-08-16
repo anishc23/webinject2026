@@ -1,0 +1,87 @@
+{
+ "protocol_matched": [
+  {
+   "corpus": "CSIC-2010",
+   "panel": "protocol_matched",
+   "n_raw": 96851,
+   "n_dedup": 34552,
+   "dup_share": 0.643245810575007,
+   "n_groups": 23752,
+   "n_fitted": 34552,
+   "n_train": 25954,
+   "n_test": 8598,
+   "base_rate": 0.4605232692752952,
+   "subsampled": false,
+   "full": {
+    "f1": 0.6798399199599799,
+    "roc_auc": 0.6296619656473078
+   },
+   "syntax_deleted": {
+    "f1": 0.6239979312128264,
+    "roc_auc": 0.5794136443876059,
+    "auc_retained": 0.6124667630260838
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.6218596218596218,
+    "roc_auc": 0.5754096711563634,
+    "auc_retained": 0.581586672544241
+   }
+  },
+  {
+   "corpus": "ECML/PKDD-2007",
+   "panel": "protocol_matched",
+   "n_raw": 48991,
+   "n_dedup": 47862,
+   "dup_share": 0.023045049090649306,
+   "n_groups": 47862,
+   "n_fitted": 47862,
+   "n_train": 38289,
+   "n_test": 9573,
+   "base_rate": 0.28151769671137855,
+   "subsampled": false,
+   "full": {
+    "f1": 0.8017977528089888,
+    "roc_auc": 0.875223581652786
+   },
+   "syntax_deleted": {
+    "f1": 0.7278538812785388,
+    "roc_auc": 0.8295848765581411,
+    "auc_retained": 0.878369304792584
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.5627135187896535,
+    "roc_auc": 0.734656941791095,
+    "auc_retained": 0.6253789827320483
+   }
+  },
+  {
+   "corpus": "WebInject2026",
+   "panel": "protocol_matched",
+   "n_raw": 61400,
+   "n_dedup": 61400,
+   "dup_share": 0.0,
+   "n_groups": 61400,
+   "n_fitted": 61400,
+   "n_train": 49120,
+   "n_test": 12280,
+   "base_rate": 0.26058631921824105,
+   "subsampled": false,
+   "full": {
+    "f1": 0.9516497876510944,
+    "roc_auc": 0.9973009369902508
+   },
+   "syntax_deleted": {
+    "f1": 0.8753940600630497,
+    "roc_auc": 0.9753406547551308,
+    "auc_retained": 0.9558410600067891
+   },
+   "syntax_and_vocab_deleted": {
+    "f1": 0.05176132278936017,
+    "roc_auc": 0.44894280807391085,
+    "auc_retained": -0.10266860190349911
+   }
+  }
+ ],
+ "seed": 42,
+ "note": "Exact payload duplicates dropped; grouped by digit-masked skeleton; 80/20 GroupShuffleSplit. Applied identically to all three corpora."
+}

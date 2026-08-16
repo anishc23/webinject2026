@@ -1,0 +1,138 @@
+{
+  "cnn": [
+    {
+      "corpus": "CSIC-2010",
+      "model": "cnn",
+      "panel": "pool",
+      "n": 96851,
+      "n_train": 77480,
+      "vocab_size": 404,
+      "full": {
+        "f1": 0.9721910970765,
+        "roc_auc": 0.9966859835493763,
+        "seconds": 34.8
+      },
+      "syntax_deleted": {
+        "f1": 0.8614106019766398,
+        "roc_auc": 0.9646114378095529,
+        "seconds": 30.9,
+        "auc_retained": 0.9354228893060059
+      },
+      "syntax_and_vocab_deleted": {
+        "f1": 0.8165243480267713,
+        "roc_auc": 0.9493456258696544,
+        "seconds": 30.8,
+        "auc_retained": 0.9046875505899681
+      }
+    },
+    {
+      "corpus": "ECML/PKDD-2007",
+      "model": "cnn",
+      "panel": "pool",
+      "n": 48991,
+      "n_train": 39192,
+      "vocab_size": 404,
+      "full": {
+        "f1": 0.8226385013949781,
+        "roc_auc": 0.893599297344365,
+        "seconds": 15.5
+      },
+      "syntax_deleted": {
+        "f1": 0.7084677419354839,
+        "roc_auc": 0.8000980605991707,
+        "seconds": 15.6,
+        "auc_retained": 0.762445620772059
+      },
+      "syntax_and_vocab_deleted": {
+        "f1": 0.5442116868798236,
+        "roc_auc": 0.7191397804290734,
+        "seconds": 15.7,
+        "auc_retained": 0.5567585661550235
+      }
+    },
+    {
+      "corpus": "WebInject2026",
+      "model": "cnn",
+      "panel": "pool",
+      "n": 61400,
+      "n_train": 43028,
+      "vocab_size": 404,
+      "full": {
+        "f1": 0.9444532866465064,
+        "roc_auc": 0.9936115484916926,
+        "seconds": 16.9
+      },
+      "syntax_deleted": {
+        "f1": 0.743756786102063,
+        "roc_auc": 0.9238630058768896,
+        "seconds": 17.2,
+        "auc_retained": 0.858697506515132
+      },
+      "syntax_and_vocab_deleted": {
+        "f1": 0.09085614443797321,
+        "roc_auc": 0.611755736696461,
+        "seconds": 17.2,
+        "auc_retained": 0.22640421813052822
+      }
+    }
+  ],
+  "bert": [
+    {
+      "corpus": "WebInject2026",
+      "model": "bert",
+      "panel": "pool",
+      "n": 61400,
+      "n_train": 19999,
+      "vocab_size": 404,
+      "full": {
+        "f1": 0.9652755654667091,
+        "roc_auc": 0.9969043749039401,
+        "seconds": 961.1
+      },
+      "syntax_and_vocab_deleted": {
+        "f1": 0.31829631325852986,
+        "roc_auc": 0.6439316295435688,
+        "seconds": 727.0,
+        "auc_retained": 0.2896565955399228
+      }
+    },
+    {
+      "corpus": "CSIC-2010",
+      "model": "bert",
+      "panel": "pool",
+      "n": 96851,
+      "n_train": 19999,
+      "vocab_size": 404,
+      "full": {
+        "f1": 0.9758089210982954,
+        "roc_auc": 0.9953149282473538,
+        "seconds": 767.9
+      },
+      "syntax_and_vocab_deleted": {
+        "f1": 0.8218760979037358,
+        "roc_auc": 0.9491334368267796,
+        "seconds": 489.5,
+        "auc_retained": 0.9067633766178117
+      }
+    },
+    {
+      "corpus": "ECML/PKDD-2007",
+      "model": "bert",
+      "panel": "pool",
+      "n": 48991,
+      "n_train": 19999,
+      "vocab_size": 404,
+      "full": {
+        "f1": 0.6986725663716814,
+        "roc_auc": 0.8277260035246268,
+        "seconds": 721.0
+      },
+      "syntax_and_vocab_deleted": {
+        "f1": 0.6183241252302025,
+        "roc_auc": 0.7410860969173801,
+        "seconds": 720.6,
+        "auc_retained": 0.7356331030328629
+      }
+    }
+  ]
+}

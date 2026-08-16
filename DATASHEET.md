@@ -285,7 +285,7 @@ the raw `path`/`query`/`body`/`headers`).
 - **Closed in v4.0.0, and now enforced.** An external audit of v3.0.0 found four
   properties the 25-check gate did not test; all four reproduced. They are fixed
   by construction and `python -m src.audit_gaps` is a blocking CI step, so the
-  gate is effectively 30 checks. What was wrong, and what it is now:
+  gate is effectively 32 checks (25 validation + 7 construction). What was wrong, and what it is now:
   - **Lexical register leak.** With all punctuation and every payload-pool word
     deleted, v3.0.0's label was recoverable from ordinary vocabulary at AUC
     0.904 (0.990 against the `hard_negative` tier). Attacks were generated

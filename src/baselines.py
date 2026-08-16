@@ -185,7 +185,12 @@ def _splits(df):
     return out
 
 
-TARGET_PREVALENCES = [0.005, 0.01, 0.05, 0.254]
+# The last entry is the corpus's own operating point, reported so the
+# prevalence-corrected column can be read against an uncorrected baseline.
+# It was 0.254 until 4.5.1, which matched neither the corpus (26.06%) nor the
+# payload-disjoint test split (3,227/12,298 = 26.24%); the paper quoted it as
+# "25.4% (this corpus)" and no build produced that figure.
+TARGET_PREVALENCES = [0.005, 0.01, 0.05, 0.2624]
 
 
 def _ppv_at_prevalence(tpr, fpr, prev):
