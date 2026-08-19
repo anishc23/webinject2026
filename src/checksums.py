@@ -36,6 +36,7 @@ FILES = [
     "data/protocol_matched.json",
     "data/skeleton_transfer.json",
     "data/ablation_models.json",
+    "data/external_payloads.json",
     "data/model_zoo.json",
     "data/model_zoo_capped.json",
     "corpus/payloads.json",

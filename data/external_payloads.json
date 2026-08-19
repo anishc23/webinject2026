@@ -1,0 +1,49 @@
+{
+  "n_external_attacks": 229,
+  "n_benign_reference": 9071,
+  "n_patt_dropped_as_seen": 1145,
+  "recall_at_0.5": 0.5458515283842795,
+  "tpr_at_1pct_fpr": 0.8078602620087336,
+  "tpr_at_0.1pct_fpr": 0.5458515283842795,
+  "by_family": {
+    "cmdi": {
+      "n": 19,
+      "recall": 0.21052631578947367
+    },
+    "crlf": {
+      "n": 3,
+      "recall": 0.6666666666666666
+    },
+    "jndi": {
+      "n": 15,
+      "recall": 0.0
+    },
+    "ldapi": {
+      "n": 8,
+      "recall": 0.125
+    },
+    "nosqli": {
+      "n": 12,
+      "recall": 0.5
+    },
+    "sqli": {
+      "n": 68,
+      "recall": 0.7205882352941176
+    },
+    "traversal": {
+      "n": 19,
+      "recall": 0.631578947368421
+    },
+    "xss": {
+      "n": 76,
+      "recall": 0.5526315789473685
+    },
+    "xxe": {
+      "n": 9,
+      "recall": 1.0
+    }
+  },
+  "_corpus": "61400rows-0ab08a874581",
+  "paired_accuracy": 0.834061135371179,
+  "n_pairs": 229
+}
