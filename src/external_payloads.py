@@ -28,9 +28,11 @@ objection more weakly, because the point is that the detector never saw them.
 """
 
 import argparse
+import datetime
 import json
 import os
 import random
+import subprocess
 import sys
 
 import numpy as np
@@ -71,6 +73,34 @@ def _external_pool(patt_root):
         if keep:
             out[fam] = keep
     return out, seen, dropped
+
+
+def _patt_provenance(patt_root):
+    """Pin the upstream commit.
+
+    The corpus rebuilds byte-identically at seed 42; this holdout would not,
+    because PayloadsAllTheThings is a moving target. Recording the commit the
+    clone sits on -- and the selected group keys below -- is what makes the 229
+    reconstructible without re-resolving upstream.
+    """
+    out = {"patt_root": os.path.relpath(patt_root, ROOT)}
+    try:
+        sha = subprocess.check_output(["git", "-C", patt_root, "rev-parse", "HEAD"],
+                                      stderr=subprocess.DEVNULL).decode().strip()
+        when = subprocess.check_output(
+            ["git", "-C", patt_root, "log", "-1", "--format=%cI"],
+            stderr=subprocess.DEVNULL).decode().strip()
+        out["patt_commit"] = sha
+        out["patt_commit_date"] = when
+    except Exception:
+        out["patt_commit"] = None
+        out["patt_commit_date"] = None
+    try:
+        out["patt_checkout_mtime"] = datetime.datetime.fromtimestamp(
+            os.path.getmtime(patt_root)).isoformat(timespec="seconds")
+    except OSError:
+        pass
+    return out
 
 
 def _tpr_at_fpr(y, s, budget):
@@ -132,7 +162,8 @@ def build_holdout(patt_root, n_sample=N_SAMPLE, seed=SEED):
             continue
         rows.extend([b, a])
         made += 1
-    return pd.DataFrame(rows), dropped, len(chosen)
+    keys = sorted({P.group_key(raw) for _, raw in chosen})
+    return pd.DataFrame(rows), dropped, len(chosen), keys, len(fams), per
 
 
 def main():
@@ -146,7 +177,7 @@ def main():
     if not os.path.isdir(a.patt):
         raise SystemExit("PayloadsAllTheThings not found at %s" % a.patt)
 
-    ext_df, dropped, n_chosen = build_holdout(a.patt, a.n)
+    ext_df, dropped, n_chosen, sel_keys, n_fams, per_fam = build_holdout(a.patt, a.n)
     atk = ext_df[ext_df.label == 1]
     print("external holdout: %d payloads sampled, %d pairs built, %d PATT payloads "
           "dropped as already in the shipped pool" % (n_chosen, len(atk), dropped))
@@ -177,7 +208,18 @@ def main():
         "tpr_at_0.1pct_fpr": _tpr_at_fpr(y, s, 0.001),
         "by_family": {},
         "_corpus": S.corpus_fingerprint(csv_path=a.csv),
+        "negatives": "full payload-disjoint test split benign rows",
+        "selection": {
+            "seed": SEED,
+            "rule": "stratified: up to floor(n/families) unique payloads per "
+                    "family, shuffled at seed %d, truncated to n" % SEED,
+            "n_requested": a.n,
+            "n_families": n_fams,
+            "per_family_cap": per_fam,
+            "group_keys": sel_keys,
+        },
     }
+    out.update(_patt_provenance(a.patt))
 
     piv = ext_df[ext_df.pair_id.astype(str) != ""].pivot_table(
         index="pair_id", columns="label", values="payload", aggfunc="first").dropna()
