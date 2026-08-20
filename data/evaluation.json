@@ -367,13 +367,13 @@
     }
   },
   "attribution": {
-    "n": 1500,
-    "mean_score_attack": 0.8234702825811834,
-    "mean_score_span_removed": 0.07744381413343349,
-    "mean_score_twin": 0.01622751221714285,
-    "span_attribution_mean": 0.9496765600714947,
-    "span_attribution_median": 0.9359608858773452,
-    "localisation_rate": 0.8706666666666667
+    "n": 3227,
+    "mean_score_attack": 0.8253981939908005,
+    "mean_score_span_removed": 0.0754668928535615,
+    "mean_score_twin": 0.015574692502424896,
+    "span_attribution_mean": 0.9340132262102114,
+    "span_attribution_median": 0.9370168973330191,
+    "localisation_rate": 0.8757359776882554
   },
   "paired": {
     "n_pairs": 3227,

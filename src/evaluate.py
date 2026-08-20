@@ -292,7 +292,7 @@ def protocol_error_analysis(df):
             "false_negatives_by_family": fn_by_family}
 
 
-def protocol_attribution(df, n_sample=1500):
+def protocol_attribution(df, n_sample=None):
     """Does the model look at the injected span, or somewhere else?
 
     Because each attack is its twin plus one appended span, the ground-truth
@@ -318,7 +318,13 @@ def protocol_attribution(df, n_sample=1500):
                          aggfunc="first").dropna()
     if piv.empty:
         return {}
-    piv = piv.head(n_sample)
+    # Every complete matched pair in the test split. This was capped at 1,500
+    # for run time; the cap was a prefix in pair-identifier order, and pair ids
+    # are the generation-loop counter, so it was a convenience sample rather
+    # than a stratified one. The full pass costs ~16s, so there is no reason to
+    # sample at all.
+    if n_sample:
+        piv = piv.head(n_sample)
     atk_text = piv[1].astype(str).tolist()
     twin_text = piv[0].astype(str).tolist()
 
