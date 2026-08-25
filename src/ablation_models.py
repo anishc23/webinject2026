@@ -45,6 +45,7 @@ import torch
 import torch.nn as nn
 from sklearn.metrics import f1_score, roc_auc_score
 
+from . import checksums as S
 from .syntax_ablation import (CORPORA, _load, derive_vocab, pool_words,
                               strip_syntax, strip_vocab)
 
@@ -287,8 +288,10 @@ def main():
         by_corpus = {r["corpus"]: r for r in existing.get(a.model, [])}
         by_corpus.update({r["corpus"]: r for r in rows})
         existing[a.model] = list(by_corpus.values())
+        existing["_corpus"] = S.corpus_fingerprint()
         with open(a.json, "w", encoding="utf-8") as fh:
             json.dump(existing, fh, indent=2)
+        S.refresh(a.json)
         print("      checkpointed %d corpus/corpora -> %s"
               % (len(by_corpus), os.path.basename(a.json)))
 

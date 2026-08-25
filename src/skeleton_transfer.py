@@ -45,6 +45,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import roc_auc_score
 
+from . import checksums as S
 from .syntax_ablation import _load
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -124,8 +125,10 @@ def main():
     a = ap.parse_args()
 
     res = run()
+    res["_corpus"] = S.corpus_fingerprint()
     with open(a.json, "w", encoding="utf-8") as fh:
         json.dump(res, fh, indent=2)
+    S.refresh(a.json)
 
     src = res["source"]
     print("\nfit on WebInject2026 train (%d rows)" % src["n_train"])
@@ -133,7 +136,7 @@ def main():
           % (src["skeleton_auc_in_domain"], src["full_auc_in_domain"]))
     print("\n%-18s %10s %10s" % ("transferred to", "skeleton", "full text"))
     for k, v in res.items():
-        if k == "source":
+        if k == "source" or k.startswith("_"):
             continue
         print("%-18s %10.3f %10.3f"
               % (v["corpus"], v["skeleton_transfer_auc"],

@@ -37,6 +37,7 @@ FILES = [
     "data/skeleton_transfer.json",
     "data/ablation_models.json",
     "data/external_payloads.json",
+    "data/skeleton_external.json",
     "data/model_zoo.json",
     "data/model_zoo_capped.json",
     "corpus/payloads.json",

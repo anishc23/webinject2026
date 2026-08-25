@@ -10,18 +10,18 @@
       "full": {
         "f1": 0.9719049089225069,
         "roc_auc": 0.9963038281071752,
-        "seconds": 756.6
+        "seconds": 751.6
       },
       "syntax_deleted": {
         "f1": 0.8567524481894785,
         "roc_auc": 0.9630485293540283,
-        "seconds": 743.3,
+        "seconds": 762.4,
         "auc_retained": 0.9329940716355596
       },
       "syntax_and_vocab_deleted": {
         "f1": 0.7947640206556983,
         "roc_auc": 0.9482381966264639,
-        "seconds": 745.8,
+        "seconds": 1045.6,
         "auc_retained": 0.9031528093103249
       }
     },
@@ -35,18 +35,18 @@
       "full": {
         "f1": 0.8225352112676056,
         "roc_auc": 0.8966860086772754,
-        "seconds": 374.3
+        "seconds": 578.7
       },
       "syntax_deleted": {
         "f1": 0.5845036319612591,
         "roc_auc": 0.8040116496051544,
-        "seconds": 364.7,
+        "seconds": 490.1,
         "auc_retained": 0.7663785537051385
       },
       "syntax_and_vocab_deleted": {
         "f1": 0.3416572077185017,
         "roc_auc": 0.7180590034024803,
-        "seconds": 384.1,
+        "seconds": 452.2,
         "auc_retained": 0.5497017757938687
       }
     },
@@ -60,18 +60,18 @@
       "full": {
         "f1": 0.9466984884645983,
         "roc_auc": 0.992996799650671,
-        "seconds": 394.7
+        "seconds": 411.2
       },
       "syntax_deleted": {
         "f1": 0.7186376537369915,
         "roc_auc": 0.9266587380748718,
-        "seconds": 430.9,
+        "seconds": 498.2,
         "auc_retained": 0.8654391638590652
       },
       "syntax_and_vocab_deleted": {
         "f1": 0.17183394640042038,
         "roc_auc": 0.6177821884218351,
-        "seconds": 405.5,
+        "seconds": 470.7,
         "auc_retained": 0.2389106552117448
       }
     }
@@ -87,18 +87,18 @@
       "full": {
         "f1": 0.9662956576265872,
         "roc_auc": 0.9969992433413681,
-        "seconds": 2242.3
+        "seconds": 2009.7
       },
       "syntax_deleted": {
         "f1": 0.9391525963682702,
         "roc_auc": 0.9836673411765879,
-        "seconds": 2466.1,
+        "seconds": 2039.1,
         "auc_retained": 0.9731752063138996
       },
       "syntax_and_vocab_deleted": {
         "f1": 0.3286170698311273,
         "roc_auc": 0.6425098669836554,
-        "seconds": 2021.1,
+        "seconds": 2283.2,
         "auc_retained": 0.2867406115662259
       }
     },
@@ -112,18 +112,18 @@
       "full": {
         "f1": 0.9761392729134665,
         "roc_auc": 0.9953528895056333,
-        "seconds": 1892.5
+        "seconds": 2076.9
       },
       "syntax_deleted": {
         "f1": 0.8610285714285715,
         "roc_auc": 0.9630471880655503,
-        "seconds": 1185.1,
+        "seconds": 1006.0,
         "auc_retained": 0.9347824508052748
       },
       "syntax_and_vocab_deleted": {
         "f1": 0.8145075263719331,
         "roc_auc": 0.9464383202206083,
-        "seconds": 931.9,
+        "seconds": 946.0,
         "auc_retained": 0.9012530857873017
       }
     },
@@ -137,20 +137,21 @@
       "full": {
         "f1": 0.6974677920924034,
         "roc_auc": 0.8278010633609545,
-        "seconds": 1497.0
+        "seconds": 1570.1
       },
       "syntax_deleted": {
         "f1": 0.7480170835875534,
         "roc_auc": 0.8344082701604598,
-        "seconds": 1483.1,
+        "seconds": 1576.6,
         "auc_retained": 1.0201561481581585
       },
       "syntax_and_vocab_deleted": {
         "f1": 0.6243144424131627,
         "roc_auc": 0.7474838778141342,
-        "seconds": 1480.4,
+        "seconds": 1571.9,
         "auc_retained": 0.7549819249415309
       }
     }
-  ]
+  ],
+  "_corpus": "61400rows-0ab08a874581"
 }

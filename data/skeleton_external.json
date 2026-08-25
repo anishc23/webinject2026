@@ -1,0 +1,15 @@
+{
+  "n_external_attacks": 229,
+  "n_benign_reference": 9071,
+  "n_patt_dropped_as_seen": 1145,
+  "skeleton_auc_vs_test_benign": 0.9751995297649451,
+  "negatives": "full payload-disjoint test split benign rows, skeletonised",
+  "_corpus": "61400rows-0ab08a874581",
+  "n_pairs": 229,
+  "paired_wins": 0.8820960698689956,
+  "paired_ties": 0.11353711790393013,
+  "paired_accuracy": 0.9388646288209607,
+  "skeleton_auc_within_pair": 0.9450620697545813,
+  "in_corpus_paired_accuracy": 0.9944220638363805,
+  "in_corpus_n_pairs": 3227
+}

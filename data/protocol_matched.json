@@ -12,6 +12,7 @@
    "n_test": 8598,
    "base_rate": 0.4605232692752952,
    "subsampled": false,
+   "seed": 42,
    "full": {
     "f1": 0.6805,
     "roc_auc": 0.6258592955120341
@@ -39,6 +40,7 @@
    "n_test": 9573,
    "base_rate": 0.28151769671137855,
    "subsampled": false,
+   "seed": 42,
    "full": {
     "f1": 0.798468813330331,
     "roc_auc": 0.8749959368556384
@@ -66,6 +68,7 @@
    "n_test": 12280,
    "base_rate": 0.26058631921824105,
    "subsampled": false,
+   "seed": 42,
    "full": {
     "f1": 0.9518210027764168,
     "roc_auc": 0.9972936604005228
@@ -83,5 +86,50 @@
   }
  ],
  "seed": 42,
- "note": "Exact payload duplicates dropped; grouped by digit-masked skeleton; 80/20 GroupShuffleSplit. Applied identically to all three corpora."
+ "seed_spread": {
+  "CSIC-2010": {
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "auc_retained": [
+    0.5991585353276754,
+    0.8180828277118442,
+    0.8242292031495524
+   ],
+   "min": 0.5991585353276754,
+   "max": 0.8242292031495524
+  },
+  "ECML/PKDD-2007": {
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "auc_retained": [
+    0.6294954898880691,
+    0.5736612986020216,
+    0.6087559347826025
+   ],
+   "min": 0.5736612986020216,
+   "max": 0.6294954898880691
+  },
+  "WebInject2026": {
+   "seeds": [
+    42,
+    43,
+    44
+   ],
+   "auc_retained": [
+    -0.11688244456997923,
+    -0.14377580373318144,
+    -0.1061568719087253
+   ],
+   "min": -0.14377580373318144,
+   "max": -0.1061568719087253
+  }
+ },
+ "note": "Exact payload duplicates dropped; grouped by digit-masked skeleton; 80/20 GroupShuffleSplit. Applied identically to all three corpora. seed_spread reports AUC kept across every seed run; the headline rows are the first seed.",
+ "_corpus": "61400rows-0ab08a874581"
 }

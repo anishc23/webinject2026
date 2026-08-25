@@ -39,7 +39,8 @@ Checks
   content_type_leak  Content-Type does not predict the label
   struct_split_leak  no template spans the structural split; the structural test
                  holds enough held-out template shapes
-  session_leak   sessions never span a split and are not segregated by label
+  session_leak   sessions never span the payload-disjoint split and are not
+                 segregated by label
   struct_gen     recall on the structural (template-disjoint) test stays high
 """
 
@@ -331,7 +332,9 @@ def run(df, chk):
                 f"attack recall on template-disjoint test {sr:.3f} "
                 f"(floor {STRUCT_RECALL_FLOOR})")
 
-    # session leak: sessions must not span a split, nor be segregated by label.
+    # session leak: sessions must not span the payload-disjoint split, nor be
+    # segregated by label. Sessions do span split_struct, by construction: the
+    # template-disjoint split holds out attack shapes, not traffic bursts.
     if "session" in df.columns:
         sess_span = int((df.groupby("session").split.nunique() > 1).sum())
         per_sess = df.groupby("session").label.mean()

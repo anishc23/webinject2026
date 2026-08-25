@@ -18,5 +18,6 @@
     "base_rate": 0.2980751566614276,
     "skeleton_transfer_auc": 0.5914817596767284,
     "full_transfer_auc": 0.7589019776657836
-  }
+  },
+  "_corpus": "61400rows-0ab08a874581"
 }

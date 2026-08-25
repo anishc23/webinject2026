@@ -43,6 +43,7 @@ from sklearn.model_selection import GroupShuffleSplit
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from src import checksums as S
 from src.syntax_ablation import (CORPORA, DATA, _fit, _load, derive_vocab,
                                  pool_words, strip_syntax, strip_vocab)
 
@@ -88,7 +89,7 @@ def _retained(full_auc, deleted_auc):
     return float((deleted_auc - 0.5) / denom)
 
 
-def run(fast=False):
+def run(fast=False, seed=SEED):
     pool = pool_words()
     rows = []
 
@@ -103,7 +104,7 @@ def run(fast=False):
         payloads = d[text_col].astype(str).to_numpy()
         y = d["label"].astype(int).to_numpy()
 
-        keep_idx, tr, te = matched_split(payloads, y)
+        keep_idx, tr, te = matched_split(payloads, y, seed=seed)
         text = payloads[keep_idx]
         y = y[keep_idx]
 
@@ -131,6 +132,7 @@ def run(fast=False):
             "n_test": int(te.sum()),
             "base_rate": float(y.mean()),
             "subsampled": bool(fast and dedup_n != len(text)),
+            "seed": int(seed),
         }
 
         full, _ = _fit(text[tr], y[tr], text[te], y[te])
@@ -160,20 +162,56 @@ def main():
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--fast", action="store_true",
                     help="subsample to 12k rows per corpus")
+    ap.add_argument("--seeds", default=str(SEED),
+                    help="comma-separated split seeds; the first is the "
+                         "headline, the rest are reported as a range")
     ap.add_argument("--json", default=OUT)
     a = ap.parse_args()
 
     print("Protocol-matched ablation: dedup -> skeleton groups -> 80/20 over "
           "groups, all three corpora.\n")
-    rows = run(fast=a.fast)
+
+    seeds = [int(x) for x in str(a.seeds).split(",")]
+    by_seed = {}
+    for sd in seeds:
+        if len(seeds) > 1:
+            print(f"  seed {sd}")
+        by_seed[sd] = run(fast=a.fast, seed=sd)
+
+    # The first seed stays the headline, so the shipped numbers do not move when
+    # a seed is added. The rest are reported as a range: this panel draws its own
+    # split, so unlike Panels A and B its numbers genuinely depend on the seed.
+    rows = by_seed[seeds[0]]
+    spread = {}
+    for i, r in enumerate(rows):
+        vals = [by_seed[sd][i]["syntax_and_vocab_deleted"]["auc_retained"]
+                for sd in seeds]
+        spread[r["corpus"]] = {
+            "seeds": seeds,
+            "auc_retained": vals,
+            "min": min(vals),
+            "max": max(vals),
+        }
 
     with open(a.json, "w", encoding="utf-8") as fh:
-        json.dump({"protocol_matched": rows, "seed": SEED,
+        json.dump({"protocol_matched": rows, "seed": seeds[0],
+                   "seed_spread": spread,
                    "note": "Exact payload duplicates dropped; grouped by "
                            "digit-masked skeleton; 80/20 GroupShuffleSplit. "
-                           "Applied identically to all three corpora."},
+                           "Applied identically to all three corpora. "
+                           "seed_spread reports AUC kept across every seed run; "
+                           "the headline rows are the first seed.",
+                   "_corpus": S.corpus_fingerprint()},
                   fh, indent=1)
+
+    if len(seeds) > 1:
+        print("\n  AUC kept across seeds %s" % seeds)
+        for c, v in spread.items():
+            print("    %-16s %s  (range %.1f to %.1f)"
+                  % (c, " ".join("%6.1f" % (x * 100) for x in v["auc_retained"]),
+                     v["min"] * 100, v["max"] * 100))
     print(f"\nwrote {a.json}")
+    S.refresh(a.json)
 
 
 if __name__ == "__main__":

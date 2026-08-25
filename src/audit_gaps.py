@@ -311,9 +311,15 @@ def check_skeleton_generalises(df):
 
 
 
+# Every result JSON the paper cites. This list was previously seven names and
+# excluded the four files that had no fingerprint to check -- so the check
+# passed precisely because it did not look at them.
 RESULT_FILES = ("baselines.json", "evaluation.json", "shortcut_stats.json",
                 "separability.json", "syntax_ablation.json",
-                "model_zoo.json", "model_zoo_capped.json")
+                "model_zoo.json", "model_zoo_capped.json",
+                "ablation_models.json", "protocol_matched.json",
+                "skeleton_transfer.json", "external_payloads.json",
+                "skeleton_external.json")
 
 
 def check_results_match_corpus(df):
