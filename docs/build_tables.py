@@ -449,7 +449,8 @@ def render_ablation(panel):
                      _pct(_kept(r), 0) + "\\%"])
     return _tabular("|l|r|r|r|r|r|r|r|r|",
                     ["Corpus", "full F1", "full AUC", "F1", "AUC",
-                     "$\\Delta$AUC", "vocab", "chars del.", "AUC kept"], rows)
+                     "$\\Delta$AUC", "vocab", "chars del.",
+                     "AUC kept $\\downarrow$"], rows)
 
 
 def render_baselines():
