@@ -319,7 +319,7 @@ RESULT_FILES = ("baselines.json", "evaluation.json", "shortcut_stats.json",
                 "model_zoo.json", "model_zoo_capped.json",
                 "ablation_models.json", "protocol_matched.json",
                 "skeleton_transfer.json", "external_payloads.json",
-                "skeleton_external.json")
+                "skeleton_external.json", "crs_baseline.json")
 
 
 def check_results_match_corpus(df):

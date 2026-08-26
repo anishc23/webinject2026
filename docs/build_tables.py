@@ -106,6 +106,7 @@ def build_macros():
     zooc = _load("model_zoo_capped.json")
     ext = _load("external_payloads.json")
     sx = _load("skeleton_external.json")
+    crs = _load("crs_baseline.json")
     man = _load("manifest.json")
 
     m = {}
@@ -403,6 +404,28 @@ def build_macros():
             v[f"pm{t}SeedLo"] = _pct(sp[corpus]["min"], 0)
             v[f"pm{t}SeedHi"] = _pct(sp[corpus]["max"], 0)
 
+    # ---- the OWASP Core Rule Set ------------------------------------------
+    # A blocker, not a scorer: one operating point per paranoia level, so there
+    # is no budgeted TPR to report.
+    for pl, tag in ((1, "One"), (2, "Two")):
+        c = crs[f"paranoia_{pl}"]
+        v[f"crsRecall{tag}"] = _pct(c["recall"])
+        v[f"crsPrec{tag}"] = _pct(c["precision"])
+        v[f"crsFone{tag}"] = _pct(c["f1"])
+        v[f"crsFpr{tag}"] = _pct(c["fpr"], 1)
+    c1 = crs["paranoia_1"]
+    fam = c1["recall_by_family"]
+    for k, tag in (("sqli", "Sqli"), ("xss", "Xss"), ("protopollute", "Proto"),
+                   ("ssrf", "Ssrf")):
+        v[f"crs{tag}"] = _pct(fam[k]["recall"], 0)
+    for t, tag in (("hard_negative", "Hard"), ("routine", "Routine"),
+                   ("ambiguous", "Ambig")):
+        v[f"crsFp{tag}"] = _pct(c1["fp_by_tier"][t]["fp_rate"], 1)
+    # Families where CRS trails its own SQLi figure by more than half.
+    weak = sorted(k for k, r in fam.items()
+                  if r["recall"] < 0.5 * fam["sqli"]["recall"])
+    v["crsWeakN"] = str(len(weak))
+
     # ---- the external skeleton control ------------------------------------
     v["sxN"] = str(sx["n_external_attacks"])
     v["sxPairs"] = _int(sx["n_pairs"])
@@ -468,6 +491,12 @@ def render_baselines():
         rows.append([name, _pct(r["f1"]), _pct(r["pr_auc"]),
                      _pct(r["tpr_at_1pct_fpr"]),
                      _pct(r["tpr_at_0.1pct_fpr"])])
+    # The CRS is deployed as a blocker: it returns a decision, not a ranking, so
+    # it has one operating point per paranoia level and no budgeted TPR.
+    # Paranoia 1 is the deployed default and the row shown; paranoia 2 is
+    # reported in the prose, where the recall/false-positive trade is the point.
+    c = _load("crs_baseline.json")["paranoia_1"]
+    rows.append(["OWASP CRS (paranoia 1)", _pct(c["f1"]), "---", "---", "---"])
     return _tabular("|l|r|r|r|r|",
                     ["Baseline", "F1", "PR-AUC", "TPR@1\\%FPR",
                      "TPR@0.1\\%FPR"], rows)
