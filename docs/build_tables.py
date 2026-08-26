@@ -475,8 +475,6 @@ def render_zoo(capped):
     z = _load("model_zoo_capped.json" if capped else "model_zoo.json")
 
     def cell(d, key, fn):
-        """A model that failed to converge ships as an empty entry and prints
-        as a rule, so a reader can tell a failed run from an omitted one."""
         if not d or d.get(key) is None:
             return "---"
         return fn(d[key])
@@ -484,6 +482,16 @@ def render_zoo(capped):
     rows = []
     for tier in _TIERS:
         for name, r in z.get(tier, {}).items():
+            # A model that was run and failed to converge carries an `error`
+            # instead of metrics. It keeps its row, with the reason spanning the
+            # metric columns: a reader can then tell a failed run from an omitted
+            # one, which five rules alone do not convey. The full diagnosis is in
+            # the result file.
+            if "error" in r:
+                rows.append([name, tier,
+                             "\\multicolumn{5}{c|}{non-convergent: "
+                             "diverged in the backward pass}"])
+                continue
             rows.append([name, tier,
                          cell(r.get("payload-disjoint"), "f1", _pct),
                          cell(r.get("payload-disjoint"), "tpr_at_0.1pct_fpr", _pct),
