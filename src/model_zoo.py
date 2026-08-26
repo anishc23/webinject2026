@@ -272,15 +272,19 @@ def _transformer(name, epochs=1, max_len=128, batch=32, lr=3e-5, clip=1.0):
                 # this stack -- see the RuntimeError below -- so bail on the first
                 # non-finite loss rather than spending ~30 min per fit to confirm.
                 if not torch.isfinite(out.loss):
+                    # What is measured is the forward loss going non-finite at a
+                    # step after the first, i.e. a preceding update already
+                    # destroyed the weights. Where in that update it happened is
+                    # not observed here, so this reports the observation and not
+                    # a mechanism.
                     raise RuntimeError(
                         f"{name} diverged to a non-finite loss at optimiser step "
                         f"{step} on {dev}. Reproduced on CUDA (not only Apple "
                         f"Metal) across fp32, fp32 with TF32 disabled, and bf16, "
                         f"and independent of learning rate, warm-up and gradient "
-                        f"clipping: the divergence is in the backward pass, so no "
-                        f"optimiser setting rescues it. Recorded as non-convergent "
-                        f"on transformers/torch as installed; needs a "
-                        f"DeBERTa-compatible stack.")
+                        f"clipping, so no optimiser setting tried rescues it. "
+                        f"Recorded as non-convergent on transformers/torch as "
+                        f"installed; needs a DeBERTa-compatible stack.")
                 out.loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), clip)
                 opt.step()

@@ -137,6 +137,19 @@ def build_macros():
     m["wiBenignCores"] = _int(g["benign_cores"])
     m["wiAmbigCores"] = _int(g["ambiguous_cores"])
 
+    # Rows carrying raw NUL bytes, counted from the shipped CSV. Not available
+    # from any result file, and not countable with pandas: the C parser silently
+    # drops NULs, so a naive check reports zero. Counted here over CSV records
+    # rather than file lines, because payloads contain embedded newlines.
+    import csv as _csv, io as _io
+    _csv.field_size_limit(10 ** 9)
+    with open(os.path.join(ROOT, "data", "webinject2026.csv"), "rb") as fh:
+        _raw = fh.read().decode("utf-8", "surrogateescape")
+    _r = _csv.reader(_io.StringIO(_raw, newline=""))
+    next(_r)
+    m["wiNulRows"] = str(sum(1 for rec in _r if any("\x00" in v for v in rec)))
+    del _raw
+
     # Release version is the citation metadata, not a result.
     with open(os.path.join(ROOT, "CITATION.cff"), encoding="utf-8") as f:
         for line in f:
