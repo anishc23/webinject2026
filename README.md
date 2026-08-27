@@ -158,18 +158,18 @@ baselines. Accuracy/F1 saturate; detection at a strict FP budget does not.
   split, **87.9 on the payload-disjoint split, and 50.8 on the template-disjoint
   (`split_struct`) split** — a 37.0-point structural gap. Report all three.
 - **Prevalence matters.** At the corpus's 25% attack rate the char n-gram's
-  precision at 1% FPR is 97.1%; at a realistic **0.5% prevalence it is 32.8%**, and
+  precision at 1% FPR is 97.2%; at a realistic **0.5% prevalence it is 32.8%**, and
   49.5% at 1%. Report the precision at *your* operating prevalence —
   `evaluate.py` prints the table.
 - **Group-bootstrap 95% CI** (char n-gram, disjoint, resampling payload groups —
-  not rows): F1 [91.7, 94.8], recall [85.0, 90.4], TPR@0.1%FPR [80.2, 92.2].
-- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 26%** · ssti 76% · smuggle 76% · ssrf 77% · deser 77% … sqli 97% · xss 97% · jndi 99%.
+  not rows): F1 [91.7, 94.9], recall [85.0, 90.5], TPR@0.1%FPR [79.7, 92.6].
+- **Where the headroom is** (char n-gram recall, disjoint): **cmdi 25%** · ssti 76% · smuggle 76% · ssrf 77% · deser 77% … sqli 97% · xss 97% · jndi 99%.
 - **External validity.** Train here, test on CSIC-2010 / ECML-PKDD-2007: F1 falls
   from ~95 in-corpus to ~41–46 cross-corpus. **Do not quote that F1 on its own —
   it is threshold collapse, not graded degradation.** Recall is ~100% and
   precision equals the base rate, i.e. the model fires on nearly every row; an
   all-positive classifier scores exactly 41.0 at CSIC's base rate. Threshold-free
-  the picture is worse and more honest: **AUC 0.60 against CSIC-2010** and **0.76 against
+  the picture is worse and more honest: **AUC 0.61 against CSIC-2010** and **0.76 against
   ECML/PKDD**, with the model firing on 100% of rows at threshold 0.5. Synthetic detection signal does not
   transfer; see [DATASHEET.md](DATASHEET.md) > Limitations.
 

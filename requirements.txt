@@ -1,22 +1,35 @@
-# WebInject2026 — pinned for reproducibility (Python 3.11+)
-# 3.11 is a hard floor, not a preference: 25 rows carry raw NUL bytes from the
-# null-byte evasion, and 3.10's csv module rejects NUL on read and on write.
-numpy>=1.24
-pandas>=2.0
-scikit-learn>=1.3
-scipy>=1.10
-# Parquet export (data/webinject2026.parquet) written by `python -m src.build`
-pyarrow>=14
-# Optional: only needed for `python -m src.build --capture` (live container replay)
-requests>=2.31,<3
-# Optional: extra baseline model referenced in notebooks
-xgboost>=2.0,<3
-# Test runner
-pytest>=7.4
-# Optional: only needed for `python -m src.figures` (the paper figures)
-matplotlib>=3.7
-# Optional: `python -m src.model_zoo --tier deep|transformer`. The classical
-# tier needs nothing beyond scikit-learn and xgboost above. Apple silicon uses
-# the MPS backend automatically; elsewhere CUDA or CPU.
-torch>=2.2
-transformers>=4.40
+# WebInject2026 -- pinned for reproducibility.
+#
+# These are exact versions, not lower bounds: commit history (see the v4.5
+# regeneration) shows that lbfgs converges to marginally different coefficients
+# under different numpy/scipy/BLAS builds, which moves threshold-sensitive
+# counts by a row and blows up small-denominator ratios. A lower bound (>=)
+# permits exactly that drift; the corpus fingerprint identifies the corpus a
+# result was scored against but not the stack it ran on, so the stack is pinned
+# here instead. Every shipped number was produced against this set.
+#
+# Python 3.11 is a hard floor: 24 rows carry raw NUL bytes from the null-byte
+# evasion, and 3.10's csv module rejects NUL on read and on write. Tested on
+# CPython 3.14.5.
+numpy==2.4.6
+pandas==3.0.5
+scikit-learn==1.9.0
+scipy==1.18.0
+joblib==1.5.3            # scikit-learn parallelism; pinned for determinism
+threadpoolctl==3.6.0     # BLAS thread control; affects lbfgs reproducibility
+# Parquet export (data/webinject2026.parquet), written by `python -m src.build`
+pyarrow==25.0.0
+# Only for `python -m src.build --capture` and `python -m src.crs_baseline`
+# (live HTTP replay against a container).
+requests==2.34.2
+# Extra baseline model (classical tier of the zoo).
+xgboost==3.3.0
+# Test runner.
+pytest==9.1.1
+# Paper figures (`python -m src.figures`, `python -m src.fig_ablation`).
+matplotlib==3.11.1
+# Deep and transformer tiers (`python -m src.model_zoo --tier deep|transformer`
+# and `python -m src.ablation_models`). The classical tier needs nothing beyond
+# scikit-learn and xgboost. Apple silicon uses the MPS backend automatically.
+torch==2.13.0
+transformers==5.14.1
