@@ -8,9 +8,11 @@
 # result was scored against but not the stack it ran on, so the stack is pinned
 # here instead. Every shipped number was produced against this set.
 #
-# Python 3.11 is a hard floor: 24 rows carry raw NUL bytes from the null-byte
-# evasion, and 3.10's csv module rejects NUL on read and on write. Tested on
-# CPython 3.14.5.
+# Python 3.12 is the floor. Two independent reasons: 24 rows carry raw NUL bytes
+# from the null-byte evasion and 3.10's csv module rejects NUL on read and write;
+# and the pinned scientific stack below (scipy 1.18) requires >=3.12, so 3.11
+# cannot install the versions the published numbers were produced against.
+# Developed on CPython 3.14.5; CI covers 3.12 and 3.13.
 numpy==2.4.6
 pandas==3.0.5
 scikit-learn==1.9.0

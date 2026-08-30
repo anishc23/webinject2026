@@ -17,7 +17,7 @@ jobs:
       # (null-byte evasion), and 3.10's csv module rejects NUL on both read
       # and write. 3.11 lifted that. See DATASHEET.md > Limitations.
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12", "3.13"]
     name: gate (py${{ matrix.python-version }})
     steps:
       - uses: actions/checkout@v4
