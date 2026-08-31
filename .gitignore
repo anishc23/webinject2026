@@ -13,3 +13,6 @@ __pycache__/
 
 # Local archive, not part of the release
 Archive.zip
+
+# stray pdflatex artifact from running latex outside the paper tree
+texput.log
