@@ -94,6 +94,13 @@ CSV is byte-identical to 4.4.0.
   `TODO(owner):` markers rather than commented-out fields, so they cannot be
   mistaken for filled in.
 
+### Removed
+- **`Understanding_WebInject2026.pdf` and `docs/build_explainer.py`.** The
+  explainer was a reader's aid rather than part of the release, and nothing in
+  the pipeline, the gate or CI depended on it. Its README entries are removed
+  with it. The 4.4.0 entry recording that it was added stays: that release did
+  add it, and the log records what happened.
+
 ## 4.4.0 - the structural protocol is no longer inventory-limited
 
 The template-disjoint split is where the paper's most interesting generalisation
