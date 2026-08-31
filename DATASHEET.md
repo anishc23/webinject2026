@@ -144,7 +144,7 @@ injectable parameter also has a benign generator on the same endpoint (v1's
 `comment` carried 2,187 attacks and zero benign requests); (2) every endpoint has
 a free-text field to carry a benign core; (3) every family is reachable at ≥6
 endpoints, so the URL cannot predict the family (v2.1 path→family NMI was 0.55,
-now 0.197); (4) every content type carries both benign and attack traffic, so
+now 0.200); (4) every content type carries both benign and attack traffic, so
 `Content-Type` is not a label proxy. Headers are drawn independently of the label
 (v2.1 gave attacks richer headers than routine benigns; header→label NMI is now
 0.000).
@@ -169,7 +169,7 @@ now 0.197); (4) every content type carries both benign and attack traffic, so
 
 Two fixed splits ship, both 70 / 10 / 20, assigned by **group** (not by row) and
 **stratified by family/tier**, so the attack ratio matches across splits (spread
-0.001) and **every family appears in every split**.
+0.006) and **every family appears in every split**.
 
 - **`split` — payload-disjoint (primary; report this).** A group is a canonical
   (evasion-stripped) attack payload and all its variants, a hard-negative benign
@@ -212,7 +212,7 @@ the raw `path`/`query`/`body`/`headers`).
 - **Synthetic benign distribution.** Engineered for coverage and difficulty, not
   sampled from production; absolute detection numbers will not transfer directly
   to a live deployment. Cross-dataset transfer (train here → test on CSIC/ECML)
-  drops F1 from ~96 in-corpus to ~41–46 cross-corpus — report it, in
+  drops F1 from 93.4 in-corpus to 41–46 cross-corpus — report it, in
   `data/baselines.json`.
 - **Prevalence.** The corpus is ~26% attack; production is far lower. Precision is
   prevalence-dependent, so `baselines.py`/`evaluate.py` report precision corrected
@@ -227,7 +227,7 @@ the raw `path`/`query`/`body`/`headers`).
 - **Offline release contains no server responses or timing**, so response-based
   detectors are out of scope for synthetic rows; the `status` column is populated
   only under live capture.
-- **Family imbalance** (crlf 194 … xss 3,584) mirrors real-world prevalence but
+- **Family imbalance** (crlf 165 … xss 3,697) mirrors real-world prevalence but
   means small-family metrics have wider CIs; the disjoint test still holds ≥11
   payload groups per family, and `baselines.py` reports group-level bootstrap CIs.
 - **Seed payload set is finite**; place PayloadsAllTheThings under `data/patt/`
@@ -279,7 +279,7 @@ the raw `path`/`query`/`body`/`headers`).
   traffic, so an exact match would falsify the benign distribution. What is
   enforced by `src.shortcut_stats` in CI is that no single character yields a
   usable detector (best AUC 0.568, ceiling 0.60) and that every association is
-  smaller than in CSIC-2010 (0.316) or ECML/PKDD (0.411). v4.0.0 had this at
+  smaller than in CSIC-2010 (0.300) or ECML/PKDD (0.411). v4.0.0 had this at
   0.318 -- on par with CSIC -- and the claim that no character predicted the
   label was simply wrong until 4.1.0 measured it.
 - **Closed in v4.0.0, and now enforced.** An external audit of v3.0.0 found four
@@ -292,7 +292,7 @@ the raw `path`/`query`/`body`/`headers`).
     independently with routine-tier filler while hard negatives carried prose
     cores, so carrier register encoded the tier and the tier encoded the label.
     v4 builds each attack as the counterfactual twin of a benign row; carrier
-    AUC is now **0.568**. The residual 0.824 against `hard_negative` alone is
+    AUC is now **0.565**. The residual 0.823 against `hard_negative` alone is
     tier composition, not label signal: only 40% of attacks are twinned with a
     hard negative, so that comparison is largely prose against non-prose. Since
     4.3.0 the check gates the *matched* version instead -- each hard-negative
@@ -310,7 +310,7 @@ the raw `path`/`query`/`body`/`headers`).
     Templates were added so every family now holds at least 4-5 (98 in the pool,
     up from 84), the audit reports no inventory-limited family, and the
     structural gap widened as the harder split took effect (char n-gram
-    TPR@0.1%FPR 87.6 on the payload split, 52.5 structural).
+    TPR@0.1%FPR 87.9 on the payload split, 50.8 structural).
   - **`session` had no sequential signal** (variance 0.989x i.i.d.). Sessions
     are now bursty; the ratio is **2.87**.
   - **Cross-corpus transfer read as graded degradation when it was threshold

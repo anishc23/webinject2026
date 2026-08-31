@@ -243,7 +243,7 @@ and for both corpora it replaces.
 | Corpus | strongest character | Cramer's V | best single-char AUC |
 |---|---|--:|--:|
 | **WebInject2026** | `%` | **0.147** | **0.568** |
-| CSIC-2010 | `-` | 0.316 | 0.672 |
+| CSIC-2010 | `=` | 0.300 | 0.672 |
 | ECML/PKDD-2007 | `)` | 0.411 | 0.662 |
 
 The claim is deliberately not "zero association", which would be false and easy
@@ -357,9 +357,9 @@ Every protocol reports precision corrected to 0.5% / 1% / 5% / 26% attack
 prevalence. Reference char n-gram, payload-disjoint test:
 
 - **Structural gap.** TPR@0.1%FPR falls **87.9 → 50.8** from the payload-disjoint
-  to the template-disjoint split (35.1 pts) — the model leans on template shape.
-- **Zero-shot (LOFO) recall spans 7.1 → 69.8%.** A model that never saw the family
-  barely flags cmdi (7.1%) or sqli (7.4%), but transfers to smuggle (69.8%)
+  to the template-disjoint split (37.0 pts) — the model leans on template shape.
+- **Zero-shot (LOFO) recall spans 7.4 → 69.8%.** A model that never saw the family
+  barely flags sqli (7.4%) or cmdi (7.8%), but transfers to smuggle (69.8%)
   and xxe (66.7%). Injection detection does **not** generalise uniformly across families.
 - **Matched-pair sensitivity (new in v4).** Every attack is the counterfactual
   twin of a benign row, differing only by the injected span and matched on
@@ -389,7 +389,7 @@ prevalence. Reference char n-gram, payload-disjoint test:
   the data, this is measured rather than approximated as SHAP or integrated
   gradients would.
 - **Evasion hold-out.** Trained on plain attacks only, recall on *evaded* test
-  attacks is **51.4%** (49.7% on chained transforms).
+  attacks is **54.3%** (50.3% on chained transforms).
 
 To grade your own detector on the fixed test split, pass one score per test row
 (in `df[df.split=='test']` order):
