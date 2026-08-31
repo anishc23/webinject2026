@@ -107,6 +107,7 @@ def build_macros():
     ext = _load("external_payloads.json")
     sx = _load("skeleton_external.json")
     crs = _load("crs_baseline.json")
+    skc = _load("skeleton_crude.json")
     man = _load("manifest.json")
 
     m = {}
@@ -425,6 +426,26 @@ def build_macros():
     weak = sorted(k for k, r in fam.items()
                   if r["recall"] < 0.5 * fam["sqli"]["recall"])
     v["crsWeakN"] = str(len(weak))
+
+    # ---- how much of the skeleton signal is crude ------------------------
+    # Skeleton AUC decomposes: a skeleton still carries its own length and
+    # punctuation density. Where those sit at chance the signal is arrangement.
+    for corpus, tag in (("WebInject2026", "Wi"), ("CSIC-2010", "Csic"),
+                        ("ECML/PKDD-2007", "Ecml")):
+        v["skc%sLen" % tag] = _f(skc[corpus]["length_auc"])
+        v["skc%sDen" % tag] = _f(skc[corpus]["density_auc"])
+
+    # ---- cross-corpus transfer, every ordered pair -------------------------
+    # Reported to show poor transfer is a property of the corpus pair rather
+    # than of this corpus: the two real-traffic corpora transfer to each other
+    # no better than the synthetic one transfers to them.
+    xd = bl["cross_dataset"]
+    v["xcCsicEcml"] = _f(xd["csic"]["ecml"]["roc_auc"], 2)
+    v["xcCsicWi"] = _f(xd["csic"]["webinject"]["roc_auc"], 2)
+    v["xcEcmlWi"] = _f(xd["ecml"]["webinject"]["roc_auc"], 2)
+    pairs = [xd[a][b]["roc_auc"] for a in xd for b in xd[a]]
+    v["xcPairLo"] = _f(min(pairs), 2)
+    v["xcPairHi"] = _f(max(pairs), 2)
 
     # ---- the external skeleton control ------------------------------------
     v["sxN"] = str(sx["n_external_attacks"])

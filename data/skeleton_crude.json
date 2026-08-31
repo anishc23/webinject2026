@@ -1,0 +1,25 @@
+{
+  "WebInject2026": {
+    "corpus": "WebInject2026",
+    "n_test": 12298,
+    "length_auc": 0.5162992823511876,
+    "density_auc": 0.477096839289075,
+    "split": "split"
+  },
+  "CSIC-2010": {
+    "corpus": "CSIC-2010",
+    "n_test": 29056,
+    "length_auc": 0.7318674202628329,
+    "density_auc": 0.7292105370210029,
+    "split": "random 70/30 at seed 42"
+  },
+  "ECML/PKDD-2007": {
+    "corpus": "ECML/PKDD-2007",
+    "n_test": 14698,
+    "length_auc": 0.6812625444808238,
+    "density_auc": 0.8301430804905691,
+    "split": "random 70/30 at seed 42"
+  },
+  "_corpus": "61400rows-0ab08a874581",
+  "_note": "Single-feature AUC on the punctuation skeleton, on the same test rows as src.separability.skeleton_auc. Compare against the skeleton_auc in separability.json."
+}
