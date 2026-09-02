@@ -3,12 +3,15 @@
 The paper states that every number in it comes from `tables/macros.tex` or a
 `tables/tab_*.tex` fragment, and that both are generated from the result JSONs
 rather than typed. This script is what makes that true. It reads only
-`data/*.json`, `data/manifest.json` and `CITATION.cff`, and writes:
+`data/*.json`, `data/manifest.json`, `CITATION.cff` and the corpus itself
+(for the NUL-byte count and the worked example), and writes:
 
     tables/macros.tex            203 \newcommand definitions
+    tables/tab_ablation_models.tex
     tables/tab_ablation_pool.tex
     tables/tab_ablation_symmetric.tex
     tables/tab_baselines.tex
+    tables/tab_example.tex
     tables/tab_lofo.tex
     tables/tab_zoo_capped.tex
     tables/tab_zoo_full.tex
@@ -497,6 +500,85 @@ def render_ablation(panel):
                      "AUC kept $\\downarrow$"], rows)
 
 
+def _tt(s):
+    """LaTeX-escape a literal request fragment for \texttt."""
+    for a, b in (("\\", "\\textbackslash{}"), ("&", "\\&"), ("%", "\\%"),
+                 ("$", "\\$"), ("#", "\\#"), ("_", "\\_"), ("{", "\\{"),
+                 ("}", "\\}"), ("~", "\\textasciitilde{}"),
+                 ("^", "\\textasciicircum{}")):
+        s = s.replace(a, b)
+    return s
+
+
+def render_ablation_models():
+    """AUC kept under three architectures, Panel A conditions.
+
+    Section 6.1 argued the ablation is not an artefact of tf-idf plus a linear
+    boundary. That argument rested on nine numbers quoted inside two prose
+    sentences; this is the same nine, in the order the section reads them.
+    """
+    pool = _by_corpus(_load("syntax_ablation.json")["pool"])
+    am = _load("ablation_models.json")
+    cnn, bert = _by_corpus(am["cnn"]), _by_corpus(am["bert"])
+    rows = [[c, _pct(_kept(pool[c]), 0) + "\\%",
+             _pct(_kept(cnn[c]), 0) + "\\%",
+             _pct(_kept(bert[c]), 0) + "\\%"] for c in CORPORA]
+    return _tabular("|l|r|r|r|",
+                    ["Corpus", "LogReg", "CNN", "DistilBERT"], rows)
+
+
+def render_example():
+    """One real counterfactual pair, carried through both deletion stages.
+
+    Nothing here is typed: the pair is the shortest in the corpus (ties broken
+    on `pair_id`, so the choice is deterministic), and the two deleted forms are
+    produced by importing the same `strip_syntax`/`strip_vocab` the experiment
+    runs. The row is abridged to the query string -- the path, headers and
+    cookie are byte-identical between the twins, and the caption says so.
+    """
+    sys.path.insert(0, os.path.join(ROOT, "src"))
+    from audit_gaps import load
+    from syntax_ablation import pool_words, strip_syntax, strip_vocab
+
+    df = load()
+    pr = df[df.pair_id.astype(str) != ""].copy()
+    pr["_len"] = pr.payload.str.len()
+    pr = pr.sort_values(["_len", "pair_id"], kind="mergesort")
+    g = pr[pr.pair_id == pr.iloc[0].pair_id]
+    atk = g[g.label == 1].iloc[0]
+    ben = g[g.label == 0].iloc[0]
+
+    def seg(row):
+        """The query segment of the serialised request, as the model sees it."""
+        head = str(row.path) + " "
+        body = str(row.payload)
+        assert body.startswith(head), "payload no longer starts with the path"
+        rest = body[len(head):]
+        cut = rest.find(" User-Agent:")
+        assert cut > 0, "payload no longer carries a User-Agent header"
+        return rest[:cut]
+
+    def abridge(q):
+        """First two query parameters, so the table fits one column."""
+        return "&".join(q.split("&")[:2])
+
+    pool = pool_words()
+    a0, b0 = abridge(seg(atk)), abridge(seg(ben))
+    a1, b1 = strip_syntax(a0), strip_syntax(b0)
+    a2 = strip_vocab(a0, pool)
+    b2 = strip_vocab(b0, pool)
+    assert a2 == b2, "the twins no longer collapse to identical text"
+
+    rows = [["attack", _tt(a0)], ["twin", _tt(b0)],
+            ["$-$syn, attack", _tt(a1)], ["$-$syn, twin", _tt(b1)],
+            ["$-$syn $-$vocab", _tt(a2)]]
+    out = [HEAD, "\\begin{tabular}{|l|l|}\n", "\\hline\n",
+           "Stage & Query string \\\\\n", "\\hline\n"]
+    out += [f"{lab} & \\texttt{{{txt}}} \\\\\n" for lab, txt in rows]
+    out += ["\\hline\n", "\\end{tabular}\n"]
+    return "".join(out)
+
+
 def render_baselines():
     b = _load("baselines.json")["baselines"]
     label = {
@@ -571,6 +653,8 @@ TARGETS = {
     "macros.tex": render_macros,
     "tab_ablation_pool.tex": lambda: render_ablation("pool"),
     "tab_ablation_symmetric.tex": lambda: render_ablation("symmetric"),
+    "tab_ablation_models.tex": render_ablation_models,
+    "tab_example.tex": render_example,
     "tab_baselines.tex": render_baselines,
     "tab_lofo.tex": render_lofo,
     "tab_zoo_capped.tex": lambda: render_zoo(True),
