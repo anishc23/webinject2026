@@ -6,6 +6,9 @@
    "n": 96851,
    "base_rate": 0.25659001972101475,
    "vocab_size": 404,
+   "vocab_recall": 1.0,
+   "vocab_gt_n": 124,
+   "vocab_gt_exact": false,
    "full": {
     "f1": 0.980319803198032,
     "roc_auc": 0.9962268577089926,
@@ -32,6 +35,9 @@
    "n": 48991,
    "base_rate": 0.2980751566614276,
    "vocab_size": 404,
+   "vocab_recall": 1.0,
+   "vocab_gt_n": 200,
+   "vocab_gt_exact": false,
    "full": {
     "f1": 0.8177957532861476,
     "roc_auc": 0.881768065304845,
@@ -58,6 +64,9 @@
    "n": 61400,
    "base_rate": 0.26058631921824105,
    "vocab_size": 404,
+   "vocab_recall": 1.0,
+   "vocab_gt_n": 403,
+   "vocab_gt_exact": true,
    "full": {
     "f1": 0.9518111254851229,
     "roc_auc": 0.9977264370732052,
@@ -90,6 +99,16 @@
    "n": 96851,
    "base_rate": 0.25659001972101475,
    "vocab_size": 6260,
+   "vocab_recall": 0.47580645161290325,
+   "vocab_gt_n": 124,
+   "vocab_gt_exact": false,
+   "superseded": {
+    "rule": "no injection guard on the benign denominator",
+    "vocab_size": 6260,
+    "vocab_recall": 0.47580645161290325,
+    "roc_auc": 0.939330189874753,
+    "f1": 0.837517115472387
+   },
    "full": {
     "f1": 0.980319803198032,
     "roc_auc": 0.9962268577089926,
@@ -116,6 +135,16 @@
    "n": 48991,
    "base_rate": 0.2980751566614276,
    "vocab_size": 510,
+   "vocab_recall": 0.355,
+   "vocab_gt_n": 200,
+   "vocab_gt_exact": false,
+   "superseded": {
+    "rule": "no injection guard on the benign denominator",
+    "vocab_size": 510,
+    "vocab_recall": 0.355,
+    "roc_auc": 0.6169211749273467,
+    "f1": 0.3293172690763052
+   },
    "full": {
     "f1": 0.8177957532861476,
     "roc_auc": 0.881768065304845,
@@ -141,7 +170,17 @@
    "panel": "symmetric",
    "n": 61400,
    "base_rate": 0.26058631921824105,
-   "vocab_size": 242,
+   "vocab_size": 251,
+   "vocab_recall": 0.6004962779156328,
+   "vocab_gt_n": 403,
+   "vocab_gt_exact": true,
+   "superseded": {
+    "rule": "no injection guard on the benign denominator",
+    "vocab_size": 242,
+    "vocab_recall": 0.5781637717121588,
+    "roc_auc": 0.8247988179331204,
+    "f1": 0.6228651798272051
+   },
    "full": {
     "f1": 0.9518111254851229,
     "roc_auc": 0.9977264370732052,
@@ -157,14 +196,112 @@
     "paired_ties": 0.0461729160210722
    },
    "syntax_and_vocab_deleted": {
-    "f1": 0.6228651798272051,
-    "roc_auc": 0.8247988179331204,
-    "chars_deleted": 0.22530628221038762,
-    "auc_retained": 0.652564930733927,
-    "f1_retained": 0.6543999782622216,
-    "paired_accuracy": 0.8049271769445305,
-    "paired_ties": 0.30647660365664703
+    "f1": 0.605482233502538,
+    "roc_auc": 0.8175584464902215,
+    "chars_deleted": 0.22574090192155116,
+    "auc_retained": 0.6380180413111455,
+    "f1_retained": 0.636136957522884,
+    "paired_accuracy": 0.7993492407809111,
+    "paired_ties": 0.3132940811899597
    }
+  }
+ ],
+ "lift_sweep": [
+  {
+   "corpus": "CSIC-2010",
+   "lift": 2.0,
+   "vocab_size": 8861,
+   "vocab_recall": 0.6532258064516129,
+   "roc_auc": 0.939952792234275,
+   "auc_retained": 0.8865960908796295
+  },
+  {
+   "corpus": "CSIC-2010",
+   "lift": 5.0,
+   "vocab_size": 6260,
+   "vocab_recall": 0.47580645161290325,
+   "roc_auc": 0.939330189874753,
+   "auc_retained": 0.8853414180422978
+  },
+  {
+   "corpus": "CSIC-2010",
+   "lift": 10.0,
+   "vocab_size": 3491,
+   "vocab_recall": 0.3951612903225806,
+   "roc_auc": 0.9337697387714943,
+   "auc_retained": 0.8741359562320876
+  },
+  {
+   "corpus": "CSIC-2010",
+   "lift": 20.0,
+   "vocab_size": 909,
+   "vocab_recall": 0.3387096774193548,
+   "roc_auc": 0.9330300531052435,
+   "auc_retained": 0.8726453362570507
+  },
+  {
+   "corpus": "ECML/PKDD-2007",
+   "lift": 2.0,
+   "vocab_size": 152497,
+   "vocab_recall": 0.485,
+   "roc_auc": 0.515406778022679,
+   "auc_retained": 0.04035638237676203
+  },
+  {
+   "corpus": "ECML/PKDD-2007",
+   "lift": 5.0,
+   "vocab_size": 510,
+   "vocab_recall": 0.355,
+   "roc_auc": 0.6169211749273467,
+   "auc_retained": 0.30626232404741377
+  },
+  {
+   "corpus": "ECML/PKDD-2007",
+   "lift": 10.0,
+   "vocab_size": 226,
+   "vocab_recall": 0.3,
+   "roc_auc": 0.7209299177059485,
+   "auc_retained": 0.578701933933458
+  },
+  {
+   "corpus": "ECML/PKDD-2007",
+   "lift": 20.0,
+   "vocab_size": 189,
+   "vocab_recall": 0.255,
+   "roc_auc": 0.7550353552734363,
+   "auc_retained": 0.6680374249474966
+  },
+  {
+   "corpus": "WebInject2026",
+   "lift": 2.0,
+   "vocab_size": 674,
+   "vocab_recall": 0.6625310173697271,
+   "roc_auc": 0.7697102502015827,
+   "auc_retained": 0.5418845175023603
+  },
+  {
+   "corpus": "WebInject2026",
+   "lift": 5.0,
+   "vocab_size": 251,
+   "vocab_recall": 0.6004962779156328,
+   "roc_auc": 0.8175584464902215,
+   "auc_retained": 0.6380180413111455
+  },
+  {
+   "corpus": "WebInject2026",
+   "lift": 10.0,
+   "vocab_size": 227,
+   "vocab_recall": 0.5583126550868487,
+   "roc_auc": 0.8690752534229075,
+   "auc_retained": 0.7415223020766007
+  },
+  {
+   "corpus": "WebInject2026",
+   "lift": 20.0,
+   "vocab_size": 200,
+   "vocab_recall": 0.49627791563275436,
+   "roc_auc": 0.8687818171811762,
+   "auc_retained": 0.7409327488202844
   }
  ],
  "_corpus": "61400rows-0ab08a874581"

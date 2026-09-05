@@ -310,6 +310,41 @@ def build_macros():
     m["symPaired"] = _pct(
         sym["WebInject2026"]["syntax_and_vocab_deleted"]["paired_accuracy"], 0)
 
+    # Panel B correction (docs/panel-b-correction.md). Deletion completeness and
+    # the superseded estimator's numbers, so Section 6.3 can disclose the change
+    # without anyone typing a number into the prose.
+    for corpus in CORPORA:
+        r = sym.get(corpus, {})
+        if r.get("vocab_recall") is not None:
+            m[f"sym{TAG[corpus]}Recall"] = _pct(r["vocab_recall"], 0)
+        pr = pool.get(corpus, {})
+        if pr.get("vocab_recall") is not None:
+            m[f"abl{TAG[corpus]}Recall"] = _pct(pr["vocab_recall"], 0)
+    m["poolTokens"] = _int(pool["WebInject2026"]["vocab_size"])
+    old_b = sym.get("WebInject2026", {}).get("superseded")
+    if old_b:
+        base = sym["WebInject2026"]["full"]["roc_auc"] - 0.5
+        m["oldSymWiKept"] = _pct((old_b["roc_auc"] - 0.5) / base, 0)
+        m["oldSymWiVocab"] = _int(old_b["vocab_size"])
+        m["oldSymWiRecall"] = _pct(old_b["vocab_recall"], 0)
+    old_e = sym.get("ECML/PKDD-2007", {}).get("superseded")
+    if old_e:
+        base = sym["ECML/PKDD-2007"]["full"]["roc_auc"] - 0.5
+        m["oldSymEcmlKept"] = _pct((old_e["roc_auc"] - 0.5) / base, 0)
+    # Lift sweep: the range our AUC kept spans across {2,5,10,20}.
+    sweep = _load("syntax_ablation.json").get("lift_sweep")
+    if sweep:
+        ours = [r for r in sweep if r["corpus"] == "WebInject2026"]
+        ecml = [r for r in sweep if r["corpus"] == "ECML/PKDD-2007"]
+        if ours:
+            m["sweepWiLo"] = _pct(min(r["auc_retained"] for r in ours), 0)
+            m["sweepWiHi"] = _pct(max(r["auc_retained"] for r in ours), 0)
+        if ours and ecml:
+            by = lambda rs: {r["lift"]: r["auc_retained"] for r in rs}
+            o, e = by(ours), by(ecml)
+            m["sweepFlips"] = ("no" if all((o[k] > e[k]) == (o[5.0] > e[5.0])
+                                           for k in o if k in e) else "yes")
+
     # Carrier-only AUC range across the zoo, full-data tier.
     carr = [v["ablation_carrier_only"]["roc_auc"]
             for z in (zoo, zooc)
@@ -484,19 +519,30 @@ def _tabular(colspec, header, rows):
 
 
 def render_ablation(panel):
+    """One panel of Table 4.
+
+    The `compl.` column is deletion completeness: the share of the injection
+    vocabulary the deletion actually removed, against the payload pool
+    restricted to terms the corpus contains. Panel A is 100% by construction --
+    it deletes the whole pool. Panel B is whatever its estimator recovers, which
+    is the point of the column: matched aggression is not matched completeness.
+    See `docs/panel-b-correction.md`.
+    """
     sa = _by_corpus(_load("syntax_ablation.json")[panel])
     rows = []
     for c in CORPORA:
         r = sa[c]
         d = r["syntax_and_vocab_deleted"]
+        rec = r.get("vocab_recall")
         rows.append([c, _f(r["full"]["f1"]), _f(r["full"]["roc_auc"]),
                      _f(d["f1"]), _f(d["roc_auc"]), _f(_delta(r)),
                      _int(r["vocab_size"]),
                      _pct(d["chars_deleted"], 0) + "\\%",
+                     ("--" if rec is None else _pct(rec, 0) + "\\%"),
                      _pct(_kept(r), 0) + "\\%"])
-    return _tabular("|l|r|r|r|r|r|r|r|r|",
+    return _tabular("|l|r|r|r|r|r|r|r|r|r|",
                     ["Corpus", "full F1", "full AUC", "F1", "AUC",
-                     "$\\Delta$AUC", "vocab", "chars del.",
+                     "$\\Delta$AUC", "vocab", "chars del.", "compl.",
                      "AUC kept $\\downarrow$"], rows)
 
 
@@ -634,9 +680,13 @@ def render_zoo(capped):
             # one, which five rules alone do not convey. The full diagnosis is in
             # the result file.
             if "error" in r:
+                # State only what the result file records. The earlier wording,
+                # "diverged in the backward pass", asserted a mechanism the run
+                # never established; what was measured is the loss going
+                # non-finite at the first optimiser step.
                 rows.append([name, tier,
-                             "\\multicolumn{5}{c|}{non-convergent: "
-                             "diverged in the backward pass}"])
+                             "\\multicolumn{5}{c|}{non-convergent: non-finite "
+                             "loss at optimiser step 1}"])
                 continue
             rows.append([name, tier,
                          cell(r.get("payload-disjoint"), "f1", _pct),

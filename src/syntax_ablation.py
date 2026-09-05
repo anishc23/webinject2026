@@ -95,6 +95,7 @@ from sklearn.metrics import f1_score, roc_auc_score
 from sklearn.model_selection import train_test_split
 
 from src import checksums as S  # noqa: E402
+from src.vocab import is_injective  # noqa: E402
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 DATA = os.path.join(ROOT, "data")
@@ -123,7 +124,7 @@ def pool_words():
 VOCAB_LIFT = 5.0
 
 
-def derive_vocab(text, y, tr):
+def derive_vocab(text, y, tr, lift=None, guard=True):
     """Tokens a corpus's own training attacks over-use, relative to its benigns.
 
     Presence per row, not frequency: a token counts once however often it occurs
@@ -136,15 +137,47 @@ def derive_vocab(text, y, tr):
 
     Derived from TRAIN rows only, then applied to train and test alike, so the
     deletion cannot leak test-set information into the fit.
+
+    Benign rows containing literal injection syntax are excluded from the benign
+    denominator: such a row is not evidence that a token is non-injective. This
+    corpus ships an `ambiguous` benign tier built to carry real attack syntax and
+    the comparison corpora do not, so without this exclusion the estimator
+    declines to delete this corpus's own injection vocabulary while harvesting
+    theirs, and the panel penalises the corpus for the property it was built to
+    have. The guard is `vocab.is_injective` and it is applied identically to all
+    three corpora -- there is no corpus-specific branch. See
+    `docs/panel-b-correction.md` for the specification and the measured defect.
     """
-    na = max(1, int(y[tr].sum()))
-    nb = max(1, int((1 - y[tr]).sum()))
+    lift = VOCAB_LIFT if lift is None else lift
+    tt, ty = text[tr], y[tr]
+    if guard:
+        injective = np.fromiter((is_injective(s) for s in tt), bool, len(tt))
+        use = (ty == 1) | ~injective
+        tt, ty = tt[use], ty[use]
+    na = max(1, int(ty.sum()))
+    nb = max(1, int((1 - ty).sum()))
     ca, cb = Counter(), Counter()
-    for s, lab in zip(text[tr], y[tr]):
+    for s, lab in zip(tt, ty):
         toks = {w.lower() for w in WORD.findall(s)}
         (ca if lab == 1 else cb).update(toks)
     return {w for w, n in ca.items()
-            if n / na >= VOCAB_LIFT * ((cb.get(w, 0) + 1) / nb)}
+            if n / na >= lift * ((cb.get(w, 0) + 1) / nb)}
+
+
+def vocab_recall(vocab, text, pool):
+    """Deletion completeness: share of the injection vocabulary actually deleted.
+
+    Ground truth is the payload pool restricted to terms the corpus actually
+    contains. For WebInject2026 that is exact -- the pool is where its payloads
+    came from. For CSIC-2010 and ECML/PKDD-2007 it is a proxy that can only name
+    attack words this corpus happens to know, so their true vocabularies are
+    larger than the denominator and the real recall is lower than reported.
+    """
+    present = {w.lower() for s in text for w in WORD.findall(str(s))}
+    gt = pool & present
+    if not gt:
+        return None, 0
+    return len(vocab & gt) / len(gt), len(gt)
 
 
 def strip_vocab(s, vocab):
@@ -192,6 +225,37 @@ CORPORA = [("csic_parsed", "CSIC-2010"),
            ("webinject2026", "WebInject2026")]
 
 
+def lift_sweep(lifts=(2.0, 5.0, 10.0, 20.0)):
+    """Panel B under a range of lift thresholds, per `docs/panel-b-correction.md`.
+
+    Reported so that the headline threshold is visibly not a tuned choice. The
+    rule was fixed before this was run; the sweep is a sensitivity report, not a
+    selection procedure.
+    """
+    pool = pool_words()
+    out = []
+    for key, label in CORPORA:
+        d, tr, te = _load(key)
+        if d is None:
+            continue
+        text = d["payload"].astype(str)
+        y = d["label"].to_numpy()
+        full, _ = _fit(text[tr], y[tr], text[te], y[te])
+        base = full["roc_auc"] - 0.5
+        for lift in lifts:
+            vocab = derive_vocab(text, y, tr, lift=lift)
+            deleted = text.map(lambda s: strip_vocab(s, vocab))
+            m, _ = _fit(deleted[tr], y[tr], deleted[te], y[te])
+            recall, _ = vocab_recall(vocab, text, pool)
+            out.append({"corpus": label, "lift": float(lift),
+                        "vocab_size": len(vocab),
+                        "vocab_recall": recall,
+                        "roc_auc": m["roc_auc"],
+                        "auc_retained": (float((m["roc_auc"] - 0.5) / base)
+                                         if base > 0 else float("nan"))})
+    return out
+
+
 def run(fast=False, panel="pool"):
     """One panel of Table 4. `panel` selects where the deleted vocabulary comes
     from: the fixed payload pool, or each corpus's own training attacks."""
@@ -209,8 +273,27 @@ def run(fast=False, panel="pool"):
                  "syntax_deleted": text.map(strip_syntax),
                  "syntax_and_vocab_deleted": text.map(lambda s: strip_vocab(s, vocab))}
 
+        recall, gt_n = vocab_recall(vocab, text, pool)
         rec = {"corpus": label, "panel": panel, "n": int(len(d)),
-               "base_rate": float(y.mean()), "vocab_size": len(vocab)}
+               "base_rate": float(y.mean()), "vocab_size": len(vocab),
+               "vocab_recall": recall, "vocab_gt_n": gt_n,
+               "vocab_gt_exact": key == "webinject2026"}
+
+        # The superseded Panel B estimator, kept so that Section 6.3 can state
+        # what the old rule produced without anyone typing the number in. See
+        # docs/panel-b-correction.md.
+        if panel == "symmetric":
+            old_vocab = derive_vocab(text, y, tr, guard=False)
+            old_recall, _ = vocab_recall(old_vocab, text, pool)
+            old_text = text.map(lambda s: strip_vocab(s, old_vocab))
+            old_m, _ = _fit(old_text[tr], y[tr], old_text[te], y[te])
+            rec["superseded"] = {
+                "rule": "no injection guard on the benign denominator",
+                "vocab_size": len(old_vocab),
+                "vocab_recall": old_recall,
+                "roc_auc": old_m["roc_auc"],
+                "f1": old_m["f1"],
+            }
         scores = {}
         for cond, t in conds.items():
             rec[cond], scores[cond] = _fit(t[tr], y[tr], t[te], y[te])
@@ -270,6 +353,8 @@ def main():
     ap.add_argument("--fast", action="store_true")
     ap.add_argument("--panel", default="both",
                     choices=["pool", "symmetric", "both"])
+    ap.add_argument("--sweep", action="store_true",
+                    help="also run the VOCAB_LIFT sensitivity sweep")
     args = ap.parse_args()
 
     panels = (["pool", "symmetric"] if args.panel == "both" else [args.panel])
@@ -329,6 +414,19 @@ def main():
         print("  Matched aggression is not matched completeness: the symmetric rule")
         print("  is a statistic, so it leaves injection behind. Only a paired corpus")
         print("  can measure that, which is part of why both panels ship.")
+
+    if args.sweep:
+        print("=" * 78)
+        print("VOCAB_LIFT sensitivity, Panel B rule (docs/panel-b-correction.md)")
+        print("=" * 78)
+        sweep = lift_sweep()
+        out["lift_sweep"] = sweep
+        print(f"  {'corpus':<18}{'lift':>6}{'vocab':>8}{'recall':>9}{'AUC kept':>10}")
+        for r in sweep:
+            rc = "n/a" if r["vocab_recall"] is None else f"{r['vocab_recall']*100:.0f}%"
+            print(f"  {r['corpus']:<18}{r['lift']:>6.0f}{r['vocab_size']:>8}"
+                  f"{rc:>9}{r['auc_retained']*100:>9.0f}%")
+        print()
 
     if args.json:
         payload = out if len(out) > 1 else out[panels[0]]
