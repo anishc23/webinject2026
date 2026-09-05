@@ -1,4 +1,4 @@
-"""Panel C of Table 1: the deletion ablation under one split protocol for all
+"""Panel C of Table 4: the deletion ablation under one split protocol for all
 three corpora.
 
 Why this exists
@@ -11,8 +11,8 @@ conservative in their favour -- but the paper cannot then claim "the same split
 protocol", and a reader is entitled to ask what happens when the protocols are
 actually matched.
 
-The question is sharper than it looks, because **64.4% of CSIC-2010's payload
-strings are exact duplicates** (34,552 unique of 97,065 rows). Under a random
+The question is sharper than it looks, because **64.3% of CSIC-2010's payload
+strings are exact duplicates** (34,552 unique of 96,851 rows). Under a random
 split most of its test rows have an identical copy in training, so a memorising
 model scores as a generalising one. ECML/PKDD-2007 is 2.3% duplicated;
 WebInject2026 is 0% by construction (``duplicates`` is a blocking check).

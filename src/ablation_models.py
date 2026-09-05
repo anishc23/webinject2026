@@ -25,7 +25,7 @@ The conditions, unchanged:
   -syntax -vocab  additionally every word in the payload pool
 
 and the reported quantity is the same AUC-kept ratio, (AUC - 0.5) / (AUC_full -
-0.5), so the numbers drop straight into Table 1's frame. A lower value is
+0.5), so the numbers drop straight into Table 4's frame. A lower value is
 better: it means less of the detector survived losing the attack.
 
 Budgets. The CNN trains on the full split for every corpus. The transformer is

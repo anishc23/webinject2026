@@ -1,4 +1,4 @@
-"""Table 1: how much detection performance survives deleting injection syntax?
+"""Table 4: how much detection performance survives deleting injection syntax?
 
     python -m src.syntax_ablation
     python -m src.syntax_ablation --json data/syntax_ablation.json
@@ -7,8 +7,8 @@
 The load-bearing claim of this corpus is that the ~99% detection scores reported
 against existing web-attack corpora are largely driven by dataset artefacts
 rather than by the injection itself. `src.separability` argues that one character
-at a time: a single quote is a better detector on CSIC-2010 (Cramer's V 0.316)
-and on ECML/PKDD-2007 (0.411) than any character is here (0.139).
+at a time: the strongest single character is a better detector on CSIC-2010 (Cramer's V
+0.300) and on ECML/PKDD-2007 (0.411) than any character is here (0.147).
 
 This argues it with the whole model, which is the stronger form: delete the
 injection from the corpus, retrain from scratch, and measure what is left. Three
@@ -19,14 +19,14 @@ conditions, each a strict superset of the last.
                   Every quote, angle bracket, semicolon, percent-escape, every
                   `1=1` and every `../`.
   -syntax -vocab  additionally, every word in `corpus/payloads.json` -- `script`,
-                  `select`, `union`, `passwd`, `etc`, `alert`, `onerror` and 385
+                  `select`, `union`, `passwd`, `etc`, `alert`, `onerror` and 397
                   others. Nothing recognisable as an injection survives this.
 
 The second condition alone is not the experiment, and reporting it alone would
 be misleading: deleting punctuation from `<script>alert(1)</script>` leaves
-`script alert script`, which is still the attack. Both corpora keep ~90% of
-their AUC there, and that number says only that punctuation was never the sole
-carrier. The third condition is the one that means something, because after it
+`script alert script`, which is still the attack. The reference corpora keep 96% and 88% of their
+above-chance separation there, and that number says only that punctuation was
+never the sole carrier. The third condition is the one that means something, because after it
 the injected span holds no information at all.
 
 The reading is then direct. A corpus still separable at condition three is
@@ -43,7 +43,7 @@ questions and the honest reading needs both.
              partial on the others, because it can only delete attack words this
              corpus happens to know. It therefore measures the UPPER BOUND on
              what a complete deletion removes, and it flatters our conclusion:
-             it deletes 22% of our characters and 20%/15% of CSIC's and ECML's.
+             it deletes 44% of our characters and 20%/15% of CSIC's and ECML's.
 
   symmetric  the deletion vocabulary is derived independently for each corpus
              from its OWN training attack rows -- a token is deleted when it is
@@ -54,7 +54,7 @@ questions and the honest reading needs both.
 The symmetric panel is less favourable to this corpus, and that is reported
 rather than buried: under it WebInject2026 retains more of its separation than
 ECML/PKDD-2007 does. The defensible claim spans both panels -- CSIC-2010 retains
-the most under either, and this corpus retains between a fifth and three fifths
+the most under either, and this corpus retains between a fifth and two thirds
 depending on how completely the injection can be removed.
 
 One caveat is measurable here and nowhere else, and it matters for reading the
@@ -64,7 +64,7 @@ injection residue behind. On this corpus that residue can be quantified, because
 each attack has a twin identical but for the injected span. With the pool
 vocabulary deleted, a model scores an attack above its own twin 51% of the time
 -- chance, so nothing of the injection survives. With the symmetric vocabulary
-deleted it still manages 81%, so a fifth to a third of the injection is still
+deleted it still manages 80%, so a fifth to a third of the injection is still
 there. Part of the higher retention under the symmetric panel is therefore
 incomplete deletion rather than non-injection signal. Neither corpus without
 pairs can be checked this way, which is why both panels ship rather than one.
@@ -193,7 +193,7 @@ CORPORA = [("csic_parsed", "CSIC-2010"),
 
 
 def run(fast=False, panel="pool"):
-    """One panel of Table 1. `panel` selects where the deleted vocabulary comes
+    """One panel of Table 4. `panel` selects where the deleted vocabulary comes
     from: the fixed payload pool, or each corpus's own training attacks."""
     pool = pool_words()
     rows = []
@@ -279,7 +279,7 @@ def main():
                  if panel == "pool" else
                  "derived per corpus from its own training attacks (>=5x lift)")
         print("=" * 78)
-        print(f"Table 1 [{panel}] - performance after deleting the injection")
+        print(f"Table 4 [{panel}] - performance after deleting the injection")
         print(f"  deleted vocabulary: {blurb}")
         print("  -syntax        every character that is not a letter or a space")
         print("  -syntax -vocab  ... and every word in that vocabulary")

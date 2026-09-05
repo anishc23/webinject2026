@@ -1,6 +1,6 @@
 """The OWASP ModSecurity Core Rule Set, scored on the payload-disjoint test split.
 
-Table 4's strongest rule baseline is fourteen regexes we wrote, while Section 7.1
+Table 6's strongest rule baseline is fourteen regexes we wrote, while Section 7.1
 argues that production firewalls are signature-driven and Section 1 cites the CRS.
 A reviewer is entitled to ask why the real ruleset was not run. This module runs
 it.
@@ -9,7 +9,7 @@ CRS is a blocker, not a scorer: deployed, it returns a decision, not a ranking,
 so there is no threshold to sweep and no TPR at a false-positive budget. It is
 reported at the two operating points people actually deploy -- paranoia level 1
 and 2 -- against the same test split and the same negatives as every other row of
-Table 4.
+Table 6.
 
 Requests are replayed as HTTP, reconstructed from the corpus's own method, path,
 query, body, content type and headers, through nginx with ModSecurity and the CRS
