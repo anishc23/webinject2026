@@ -663,6 +663,14 @@ def render_lofo():
                     ["Held-out family", "$n$", "In-training", "Zero-shot"], rows)
 
 
+# At the capped budget only these rows carry information the full-data block
+# does not: the transformers ran at this budget alone, and the CNN is the model
+# the cross-budget sentence in Section 4.2.6 compares them against. The classical
+# and recurrent models all appear at full data, so their capped rows are the
+# ones the page limit takes; the complete capped table ships with the artifact.
+_CAPPED_KEEP = ("CNN", "DistilBERT", "RoBERTa", "DeBERTa")
+
+
 def render_zoo(capped):
     z = _load("model_zoo_capped.json" if capped else "model_zoo.json")
 
@@ -674,6 +682,8 @@ def render_zoo(capped):
     rows = []
     for tier in _TIERS:
         for name, r in z.get(tier, {}).items():
+            if capped and name not in _CAPPED_KEEP:
+                continue
             # A model that was run and failed to converge carries an `error`
             # instead of metrics. It keeps its row, with the reason spanning the
             # metric columns: a reader can then tell a failed run from an omitted
