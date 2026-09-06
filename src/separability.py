@@ -54,7 +54,7 @@ import pandas as pd
 from scipy import stats
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
-from sklearn.metrics import roc_auc_score
+from sklearn.metrics import roc_auc_score, roc_curve
 
 warnings.filterwarnings("ignore")
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -219,6 +219,16 @@ def scalar_features(df):
     }
 
 
+def _tpr_at_fpr(y, score, budget):
+    """True-positive rate at the strictest threshold whose FPR stays within
+    `budget`. A single-feature detector's AUC says how well it ranks; this says
+    whether it is usable at the operating point the paper reports everything
+    else at, which for a residual shortcut is the question that matters."""
+    fpr, tpr, _ = roc_curve(y, score)
+    ok = fpr <= budget
+    return float(tpr[ok].max()) if ok.any() else 0.0
+
+
 def scalar_tests(df, name, groups=None, fast=False):
     y = df.label.values.astype(int)
     feats = scalar_features(df)
@@ -235,12 +245,17 @@ def scalar_tests(df, name, groups=None, fast=False):
         if not fast:
             ci = _boot_ci(lambda yy, vv: (lambda a: max(a, 1 - a))(roc_auc_score(yy, vv))
                           if len(set(yy)) > 1 else None, y, v, groups)
+        # Orient the score the way the AUC was taken, so the operating-point
+        # numbers describe the same detector the AUC describes.
+        oriented = v if roc_auc_score(y, v) >= 0.5 else -v
         out.append({"feature": fname,
                     "attack_median": float(np.median(xa)),
                     "benign_median": float(np.median(xb)),
                     "cliffs_delta": delta, "p_mannwhitney": p_mw,
                     "ks_statistic": float(ks), "p_ks": float(p_ks),
-                    "auc_alone": float(auc), "auc_ci95": list(ci)})
+                    "auc_alone": float(auc), "auc_ci95": list(ci),
+                    "tpr_at_1pct_fpr": _tpr_at_fpr(y, oriented, 0.01),
+                    "tpr_at_0.1pct_fpr": _tpr_at_fpr(y, oriented, 0.001)})
     out.sort(key=lambda r: -r["auc_alone"])
     return {"corpus": name, "features": out}
 

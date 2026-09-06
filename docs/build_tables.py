@@ -265,6 +265,28 @@ def build_macros():
         m[f"sc{tag}Auc"] = _f(top["auc"])
         m[f"sc{tag}V"] = _f(top["cramers_v"])
 
+    # ---- the one scalar shortcut that clears the single-character ceiling ---
+    # max_token_len is disclosed in Section 3.3.2. It is reported for all three
+    # corpora so a reader can see it is shared with CSIC-2010 rather than
+    # peculiar to this generator, and at the operating budget as well as by AUC,
+    # because a residual shortcut is only interesting if it is usable.
+    def _scalar(corpus, feature="max_token_len"):
+        for f in sep["scalar"][corpus]["features"]:
+            if f["feature"] == feature:
+                return f
+        return None
+
+    for corpus, tag in ((c, TAG[c]) for c in CORPORA):
+        f = _scalar(corpus)
+        if not f:
+            continue
+        m[f"mtl{tag}Auc"] = _f(f["auc_alone"])
+        m[f"mtl{tag}Delta"] = _f(f["cliffs_delta"], 2)
+        if f.get("tpr_at_1pct_fpr") is not None:
+            m[f"mtl{tag}TprOne"] = _pct(f["tpr_at_1pct_fpr"])
+        if f.get("tpr_at_0.1pct_fpr") is not None:
+            m[f"mtl{tag}TprTenth"] = _pct(f["tpr_at_0.1pct_fpr"])
+
     # ---- skeleton ----------------------------------------------------------
     sk = sep["skeleton"]
     m["skWi"] = _f(sk["WebInject2026"]["skeleton_auc"])
@@ -302,6 +324,16 @@ def build_macros():
     wi_del = pool["WebInject2026"]["syntax_and_vocab_deleted"]
     m["ablPaired"] = _pct(wi_del["paired_accuracy"])
     m["ablPairedTies"] = _pct(wi_del["paired_ties"])
+    # Decompose the paired score. The ties are not a dilution of the result --
+    # they are pairs deletion made byte-identical, where nothing *could*
+    # separate them. What is left is the share of pairs still distinguishable
+    # and how often the model prefers the attack among those.
+    _ties = wi_del["paired_ties"]
+    _nontie = 1.0 - _ties
+    m["ablPairedNonTie"] = _pct(_nontie)
+    if _nontie > 0:
+        m["ablPairedWin"] = _pct(
+            (wi_del["paired_accuracy"] - 0.5 * _ties) / _nontie)
 
     for corpus in ("ECML/PKDD-2007", "WebInject2026"):
         t, r = TAG[corpus], sym[corpus]
@@ -534,15 +566,17 @@ def render_ablation(panel):
         r = sa[c]
         d = r["syntax_and_vocab_deleted"]
         rec = r.get("vocab_recall")
+        # In Panel A the deletion rule *is* the pool, so completeness against
+        # the pool is 100% by definition. Printing it invites the reading that
+        # CSIC-2010's deletion was complete, which Section 4.1.3 denies.
         rows.append([c, _f(r["full"]["f1"]), _f(r["full"]["roc_auc"]),
                      _f(d["f1"]), _f(d["roc_auc"]), _f(_delta(r)),
                      _int(r["vocab_size"]),
                      _pct(d["chars_deleted"], 0) + "\\%",
-                     ("--" if rec is None else _pct(rec, 0) + "\\%"),
                      _pct(_kept(r), 0) + "\\%"])
-    return _tabular("|l|r|r|r|r|r|r|r|r|r|",
+    return _tabular("|l|r|r|r|r|r|r|r|r|",
                     ["Corpus", "full F1", "full AUC", "F1", "AUC",
-                     "$\\Delta$AUC", "vocab", "chars del.", "compl.",
+                     "$\\Delta$AUC", "vocab", "chars del.",
                      "AUC kept $\\downarrow$"], rows)
 
 
@@ -656,9 +690,15 @@ def render_lofo():
     fam = bl["char_ngram_recall_by_family"]
     # Ascending by zero-shot recall: the table's argument is the ordering.
     order = sorted(ev["lofo"], key=lambda k: ev["lofo"][k]["zeroshot_recall"])
+    # The table's argument is the ordering and its extremes: the families a
+    # deployment cares most about sit at the bottom. Under the page limit the
+    # three weakest and three strongest carry that argument, and the full
+    # fourteen ship with the artifact. Command injection is among the weakest,
+    # so the family the paper singles out stays on the page.
+    shown = order[:3] + order[-3:]
     rows = [[FAMILY[k], str(ev["lofo"][k]["n_test"]),
              _pct(fam[k]["recall"]),
-             _pct(ev["lofo"][k]["zeroshot_recall"])] for k in order]
+             _pct(ev["lofo"][k]["zeroshot_recall"])] for k in shown]
     return _tabular("|l|r|r|r|",
                     ["Held-out family", "$n$", "In-training", "Zero-shot"], rows)
 
