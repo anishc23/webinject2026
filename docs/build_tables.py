@@ -753,7 +753,6 @@ TARGETS = {
     "macros.tex": render_macros,
     "tab_ablation_pool.tex": lambda: render_ablation("pool"),
     "tab_ablation_symmetric.tex": lambda: render_ablation("symmetric"),
-    "tab_ablation_models.tex": render_ablation_models,
     "tab_example.tex": render_example,
     "tab_baselines.tex": render_baselines,
     "tab_lofo.tex": render_lofo,
