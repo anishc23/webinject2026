@@ -359,6 +359,13 @@ def build_macros():
         m["oldSymWiKept"] = _pct((old_b["roc_auc"] - 0.5) / base, 0)
         m["oldSymWiVocab"] = _int(old_b["vocab_size"])
         m["oldSymWiRecall"] = _pct(old_b["vocab_recall"], 0)
+        # The raw metrics either side of the correction, so the size of the
+        # change is stated rather than characterised.
+        m["oldSymWiAuc"] = _f(old_b["roc_auc"])
+        m["oldSymWiFone"] = _f(old_b["f1"])
+        _new = sym["WebInject2026"]["syntax_and_vocab_deleted"]
+        m["symWiAuc"] = _f(_new["roc_auc"])
+        m["symWiFone"] = _f(_new["f1"])
     old_e = sym.get("ECML/PKDD-2007", {}).get("superseded")
     if old_e:
         base = sym["ECML/PKDD-2007"]["full"]["roc_auc"] - 0.5
