@@ -26,6 +26,12 @@ identifiers:
   - type: doi
     value: 10.5281/zenodo.24415914
     description: "Concept DOI, resolving to the latest version"
+# NOTE: Zenodo reads .zenodo.json in preference to this file, and uses it
+# wholesale rather than merging the two. Any change here -- an author, the
+# title, the version, the licence -- must be made in .zenodo.json as well, or
+# the next release deposits a record built from stale metadata.
+# tests/test_metadata.py fails the build when the two disagree.
+#
 # TODO(owner): ORCID iDs are not yet registered. They are left as a visible gap
 # rather than a plausible-looking placeholder: a filled-in-looking identifier is
 # worse than an obviously missing one, because it ships wrong instead of

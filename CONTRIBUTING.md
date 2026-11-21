@@ -50,6 +50,19 @@ CI runs all of these on every push and pull request against two Python
 versions, and a red gate blocks the merge; that is the point of it. The full
 workflow is [.github/workflows/ci.yml](.github/workflows/ci.yml).
 
+## Deposit metadata
+
+Two files describe the archived record, and they must agree:
+
+- `CITATION.cff` — how to cite the corpus and the paper; read by GitHub.
+- `.zenodo.json` — what Zenodo deposits on each release.
+
+Zenodo reads `.zenodo.json` in preference to `CITATION.cff` and uses it
+wholesale rather than merging, so a field corrected in one and forgotten in the
+other publishes a wrong archive record, silently. `tests/test_metadata.py`
+asserts the two agree on authors, title, version and licence, and that ORCIDs
+land in both files or neither. Change both, in the same commit.
+
 ## Reporting a security issue
 
 See [SECURITY.md](SECURITY.md), which separates a scientific defect in the

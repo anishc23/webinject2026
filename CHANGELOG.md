@@ -51,6 +51,17 @@ byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
   repository's homepage. The archived record reads its authorship from
   `CITATION.cff`, so all three authors and the affiliation carried over.
 
+- `.zenodo.json` added. Zenodo's GitHub webhook hardcodes new records to the
+  `software` upload type, which is why the 4.5.1 deposit arrived as software
+  despite `CITATION.cff` declaring `type: dataset`. This file pins
+  `"upload_type": "dataset"` for every future release and carries the full
+  deposit metadata, because Zenodo uses it wholesale rather than merging it
+  with `CITATION.cff`.
+- `tests/test_metadata.py` added, asserting the two deposit files agree on
+  authors, title, version and licence, and that ORCIDs are added to both or
+  to neither. Keeping two metadata files in step is exactly the kind of thing
+  that rots quietly, so it is a test rather than a comment.
+
 ### Still open
 - ORCID iDs for all three authors, and the Zenodo DOI, are left as explicit
   TODOs in `CITATION.cff` rather than placeholders.

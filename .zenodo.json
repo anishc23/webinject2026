@@ -1,0 +1,41 @@
+{
+  "upload_type": "dataset",
+  "title": "WebInject2026: A Leakage-Audited Corpus for Web Injection Detection",
+  "version": "4.5.1",
+  "language": "eng",
+  "access_right": "open",
+  "license": "cc-by-4.0",
+  "creators": [
+    {
+      "name": "Choudhury, Anish",
+      "affiliation": "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
+    },
+    {
+      "name": "More, Abhishek Ramesh",
+      "affiliation": "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
+    },
+    {
+      "name": "Shende, Sachin Shankarrao",
+      "affiliation": "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
+    }
+  ],
+  "description": "<p>A contemporary, leakage-audited corpus for web-application injection-attack detection: 61,400 labelled HTTP requests across three deliberately vulnerable practice applications and fourteen attack families, with fixed payload-disjoint and template-disjoint splits and an automated 32-check quality gate that fails the build if a known shortcut or label leak reappears.</p><p>Every attack request is the counterfactual twin of a benign request differing only by the injected span, so the payload can be deleted surgically and attribution becomes a measurement rather than an estimate. The build is deterministic and seeded, every released file is checksummed in <code>SHA256SUMS</code>, and the repository ships a datasheet together with every result file the accompanying paper reports.</p><p>This is the archived artefact for the ICISSP 2027 paper <em>Injection-Deletion Ablation: A Leakage-Audited Corpus for Web Application Injection Detection</em>.</p><p>Code is licensed MIT; the dataset is licensed CC BY 4.0. Attack payloads derive from PayloadsAllTheThings (MIT); see <code>NOTICE</code>. All benign traffic is synthetic and contains no real users, credentials or personal data.</p>",
+  "notes": "If you use this corpus, please cite the ICISSP 2027 paper rather than this record alone. Metadata for this deposit is maintained in .zenodo.json, which takes precedence over CITATION.cff; keep the two in step.",
+  "keywords": [
+    "web application security",
+    "injection attacks",
+    "intrusion detection",
+    "dataset",
+    "data leakage",
+    "shortcut learning",
+    "benchmark",
+    "counterfactual evaluation"
+  ],
+  "related_identifiers": [
+    {
+      "identifier": "https://github.com/anishc23/webinject2026",
+      "relation": "isSupplementTo",
+      "resource_type": "software"
+    }
+  ]
+}
