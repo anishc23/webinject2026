@@ -16,3 +16,11 @@ Archive.zip
 
 # stray pdflatex artifact from running latex outside the paper tree
 texput.log
+
+# Local agent/editor state
+.claude/
+.vscode/
+
+# Camera-ready deliverables, built from the paper tree and not part of the corpus release
+webinject2026-icissp2027*.pdf
+webinject2026-icissp2027*.zip

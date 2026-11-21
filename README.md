@@ -462,12 +462,29 @@ synthetic — it contains no real users, credentials, or PII.
 
 ## Citation
 
+If you use this corpus, please cite the paper:
+
+```bibtex
+@inproceedings{choudhury2027injection,
+  author    = {Choudhury, Anish and More, Abhishek Ramesh and Shende, Sachin Shankarrao},
+  title     = {Injection-Deletion Ablation: A Leakage-Audited Corpus for Web
+               Application Injection Detection},
+  booktitle = {Proceedings of the 13th International Conference on Information
+               Systems Security and Privacy (ICISSP)},
+  year      = {2027},
+  publisher = {SCITEPRESS},
+  note      = {To appear}
+}
+```
+
+To cite the corpus artefact itself:
+
 ```bibtex
 @misc{webinject2026,
-  author = {Choudhury, Anish and Abhishek},
+  author = {Choudhury, Anish and More, Abhishek Ramesh and Shende, Sachin Shankarrao},
   title  = {WebInject2026: A Leakage-Audited Corpus for Web Injection Detection},
   year   = {2026},
-  note   = {Version 4.4.0},
+  note   = {Version 4.5.1},
   howpublished = {\url{https://github.com/anishc23/webinject2026}}
 }
 ```

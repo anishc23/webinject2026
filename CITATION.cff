@@ -1,8 +1,8 @@
 cff-version: 1.2.0
-message: "If you use this corpus, please cite it as below."
+message: "If you use this corpus, please cite the ICISSP 2027 paper below."
 title: "WebInject2026: A Leakage-Audited Corpus for Web Injection Detection"
-version: 4.5.0
-date-released: 2026-08-09
+version: 4.5.1
+date-released: 2026-11-21
 type: dataset
 license: CC-BY-4.0
 repository-code: "https://github.com/anishc23/webinject2026"
@@ -18,26 +18,47 @@ keywords:
   - intrusion detection
   - dataset
   - data leakage
-# TODO(owner): three author facts remain unresolved. They are supplied by the
-# authors and cannot be derived from the repository, so they are left as explicit
-# markers rather than plausible-looking placeholders -- a filled-in-looking
-# affiliation is worse than a visible gap, because it ships wrong instead of
-# obviously missing.
-#   TODO(owner): second author's family-names -- git records only "AbhiShrek07"
-#   TODO(owner): affiliation for both authors
-#   TODO(owner): ORCID for both authors
-# Uncomment and complete each field below; nothing else in the file needs editing.
+# TODO(owner): ORCID iDs are not yet registered, and the Zenodo DOI is minted
+# when the repository is made public. Both are left as visible gaps rather than
+# plausible-looking placeholders: a filled-in-looking identifier is worse than
+# an obviously missing one, because it ships wrong instead of ships incomplete.
+# Uncomment and complete; nothing else in this file needs editing.
+#   TODO(owner): orcid for each of the three authors
+#   TODO(owner): doi + identifiers, once the Zenodo record exists
 authors:
   - given-names: Anish
     family-names: Choudhury
     email: anishc2301@gmail.com
-    # affiliation: ""                                   # TODO(owner)
+    affiliation: "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
     # orcid: "https://orcid.org/0000-0000-0000-0000"    # TODO(owner)
-  - given-names: Abhishek
-    # family-names: ""                                  # TODO(owner) handle: AbhiShrek07
-    email: abhishekgithub07@gmail.com
-    # affiliation: ""                                   # TODO(owner)
+  - given-names: Abhishek Ramesh
+    family-names: More
+    email: abhimorework@gmail.com
+    affiliation: "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
     # orcid: "https://orcid.org/0000-0000-0000-0000"    # TODO(owner)
-# Zenodo DOI: to be minted once the repository is made public (owner's decision;
-# it is private by design today). Add `doi:` and `identifiers:` here and the
-# badge in README.md at that point.
+  - given-names: Sachin Shankarrao
+    family-names: Shende
+    email: sachin.shende@dypatil.edu
+    affiliation: "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
+    # orcid: "https://orcid.org/0000-0000-0000-0000"    # TODO(owner)
+preferred-citation:
+  type: conference-paper
+  title: "Injection-Deletion Ablation: A Leakage-Audited Corpus for Web Application Injection Detection"
+  year: 2027
+  authors:
+    - given-names: Anish
+      family-names: Choudhury
+    - given-names: Abhishek Ramesh
+      family-names: More
+    - given-names: Sachin Shankarrao
+      family-names: Shende
+  collection-title: "Proceedings of the 13th International Conference on Information Systems Security and Privacy (ICISSP 2027)"
+  publisher:
+    name: SCITEPRESS
+  conference:
+    name: "13th International Conference on Information Systems Security and Privacy (ICISSP 2027)"
+    city: Valletta
+    country: MT
+    date-start: 2027-02-22
+    date-end: 2027-02-24
+  notes: "Accepted as a full paper; to appear in the proceedings."

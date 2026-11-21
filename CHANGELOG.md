@@ -1,5 +1,25 @@
 # Changelog
 
+## 4.5.1 - publication metadata; no change to the corpus or any result
+
+The paper describing this corpus was accepted as a full paper at ICISSP 2027
+(Valletta, 22-24 February 2027). This release records that and completes the
+authorship metadata. The CSV, the Parquet copy and every result JSON are
+byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
+
+### Changed
+- `CITATION.cff` now lists all three authors with family names and
+  affiliations, and carries the ICISSP 2027 paper as `preferred-citation`.
+  Earlier versions named two authors, one of them without a family name.
+- `README.md` cites the paper first and the artefact second. The artefact
+  BibTeX entry had named two authors and claimed version 4.4.0.
+- `.gitignore` covers local agent and editor state, and the camera-ready
+  deliverables built from the paper tree.
+
+### Still open
+- ORCID iDs for all three authors, and the Zenodo DOI, are left as explicit
+  TODOs in `CITATION.cff` rather than placeholders.
+
 ## 4.5.0 - a symmetric control for Table 1; the skeleton result gets its controls
 
 Two audit findings closed, plus a third defect found while closing them. No
