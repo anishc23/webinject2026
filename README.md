@@ -1,10 +1,19 @@
 # WebInject2026
 
+[![quality-gate](https://github.com/anishc23/webinject2026/actions/workflows/ci.yml/badge.svg)](https://github.com/anishc23/webinject2026/actions/workflows/ci.yml)
+[![Licence: MIT (code)](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![Licence: CC BY 4.0 (data)](https://img.shields.io/badge/data-CC--BY--4.0-blue.svg)](LICENSE)
+
 A contemporary, leakage-audited corpus for **web-application injection-attack
 detection**. 61,400 labelled HTTP requests across three applications and fourteen
 attack families, shipped with fixed payload-disjoint **and** template-disjoint
 splits and an automated 32-check quality gate that fails the build if any known
 shortcut or leak reappears.
+
+The corpus and the evaluation protocol behind it are described in
+*Injection-Deletion Ablation: A Leakage-Audited Corpus for Web Application
+Injection Detection*, accepted as a full paper at **ICISSP 2027** (Valletta,
+22-24 February 2027; SCITEPRESS, to appear). See [Citation](#citation).
 
 > **v3.0 rebuild.** v2.1 made the *attack* side rigorous but left two measurable
 > leaks on the *benign* side: 67% of hard-negative test values appeared verbatim
@@ -273,7 +282,8 @@ try to predict the label from the ordinary words left) and **paired accuracy**
 **Both tables are published, because the training budget changes the
 conclusion.** Every row below is scored on the same fixed test split; the two
 tables differ only in how much training data the model was given. All rows are
-measured against the shipped 4.4.0 corpus (each run records a fingerprint).
+measured against the shipped corpus, byte-identical since 4.4.0 (each run
+records a fingerprint).
 
 Full data — 43,028 training rows (`data/model_zoo.json`, classical + deep):
 
@@ -453,6 +463,13 @@ Literature_Review_WebInject2026.xlsx   related-work matrix
 
 `data/csic_parsed.csv` and `data/ecml_parsed.csv` are the classic CSIC-2010 and
 ECML/PKDD-2007 corpora, parsed to a common schema for cross-dataset comparison.
+
+## Security and responsible use
+
+The corpus ships synthetic attack payloads drawn from public, long-documented
+patterns; it contains no production traffic and no personal data. Intended use,
+the limits of the label, and how to report a defect are in
+[SECURITY.md](SECURITY.md).
 
 ## Licensing
 

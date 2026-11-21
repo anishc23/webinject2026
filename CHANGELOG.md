@@ -25,6 +25,15 @@ byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
   `src/`, the CI workflow, the documentation or `SHA256SUMS` referenced it.
   It remains in the git history and on the authors' disks.
 
+- `README.md` now carries the CI and licence badges, and names the ICISSP 2027
+  paper in the opening section. Previously the paper appeared only in the
+  citation block at the foot of a 475-line file. One stale phrase, "the shipped
+  4.4.0 corpus", now reads "the shipped corpus, byte-identical since 4.4.0" --
+  accurate before, but it read as a version the repository had left behind.
+- `SECURITY.md` added: what the payloads are and are not, that they are not
+  execution-validated, intended use, and separate routes for reporting a
+  corpus defect (public issue) and a repository security issue (email).
+
 ### Still open
 - ORCID iDs for all three authors, and the Zenodo DOI, are left as explicit
   TODOs in `CITATION.cff` rather than placeholders.
