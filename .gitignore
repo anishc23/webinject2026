@@ -24,5 +24,11 @@ texput.log
 webinject2026-icissp2027*.pdf
 webinject2026-icissp2027*.zip
 
+# Submission and publisher artefacts: the anonymised paper as reviewed, its
+# iThenticate reports, and the camera-ready deliverables. Kept locally for the
+# authors' records; not part of the corpus release. submissions/README.md says
+# what each file is. Nothing here is backed up by git.
+submissions/
+
 # Superseded working backup of data/, kept locally, not part of the release
 data.backup-*/
