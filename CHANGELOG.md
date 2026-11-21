@@ -45,6 +45,12 @@ byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
 - The repository's GitHub About panel was empty. It now carries a description
   and twelve topics.
 
+- The Zenodo record for 4.5.1 exists: version DOI `10.5281/zenodo.24415915`,
+  concept DOI `10.5281/zenodo.24415914`. Both are in `CITATION.cff`, the
+  version DOI is the README badge and the artefact BibTeX entry, and it is the
+  repository's homepage. The archived record reads its authorship from
+  `CITATION.cff`, so all three authors and the affiliation carried over.
+
 ### Still open
 - ORCID iDs for all three authors, and the Zenodo DOI, are left as explicit
   TODOs in `CITATION.cff` rather than placeholders.

@@ -18,13 +18,18 @@ keywords:
   - intrusion detection
   - dataset
   - data leakage
-# TODO(owner): ORCID iDs are not yet registered, and the Zenodo DOI is minted
-# when the repository is made public. Both are left as visible gaps rather than
-# plausible-looking placeholders: a filled-in-looking identifier is worse than
-# an obviously missing one, because it ships wrong instead of ships incomplete.
-# Uncomment and complete; nothing else in this file needs editing.
-#   TODO(owner): orcid for each of the three authors
-#   TODO(owner): doi + identifiers, once the Zenodo record exists
+doi: 10.5281/zenodo.24415915
+identifiers:
+  - type: doi
+    value: 10.5281/zenodo.24415915
+    description: "Archived snapshot of version 4.5.1"
+  - type: doi
+    value: 10.5281/zenodo.24415914
+    description: "Concept DOI, resolving to the latest version"
+# TODO(owner): ORCID iDs are not yet registered. They are left as a visible gap
+# rather than a plausible-looking placeholder: a filled-in-looking identifier is
+# worse than an obviously missing one, because it ships wrong instead of
+# incomplete. Uncomment one per author below; nothing else needs editing.
 authors:
   - given-names: Anish
     family-names: Choudhury

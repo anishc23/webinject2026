@@ -3,6 +3,7 @@
 [![quality-gate](https://github.com/anishc23/webinject2026/actions/workflows/ci.yml/badge.svg)](https://github.com/anishc23/webinject2026/actions/workflows/ci.yml)
 [![Licence: MIT (code)](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
 [![Licence: CC BY 4.0 (data)](https://img.shields.io/badge/data-CC--BY--4.0-blue.svg)](LICENSE)
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.24415915.svg)](https://doi.org/10.5281/zenodo.24415915)
 
 A contemporary, leakage-audited corpus for **web-application injection-attack
 detection**. 61,400 labelled HTTP requests across three applications and fourteen
@@ -506,11 +507,13 @@ To cite the corpus artefact itself:
 
 ```bibtex
 @misc{webinject2026,
-  author = {Choudhury, Anish and More, Abhishek Ramesh and Shende, Sachin Shankarrao},
-  title  = {WebInject2026: A Leakage-Audited Corpus for Web Injection Detection},
-  year   = {2026},
-  note   = {Version 4.5.1},
-  howpublished = {\url{https://github.com/anishc23/webinject2026}}
+  author    = {Choudhury, Anish and More, Abhishek Ramesh and Shende, Sachin Shankarrao},
+  title     = {WebInject2026: A Leakage-Audited Corpus for Web Injection Detection},
+  year      = {2026},
+  note      = {Version 4.5.1},
+  doi       = {10.5281/zenodo.24415915},
+  publisher = {Zenodo},
+  url       = {https://doi.org/10.5281/zenodo.24415915}
 }
 ```
 
