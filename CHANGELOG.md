@@ -16,6 +16,15 @@ byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
 - `.gitignore` covers local agent and editor state, and the camera-ready
   deliverables built from the paper tree.
 
+- The stale `data.backup-20260814-202539/` directory is no longer tracked. It
+  held a 14 August working copy of `data/`: the corpus CSV, the Parquet copy
+  and the two comparison CSVs byte-identical to the live ones, and six result
+  JSONs that were **superseded** by later corrections. Shipping it in the
+  release archive would have doubled the download and, worse, published a
+  shadow set of pre-correction numbers beside the current ones. Nothing in
+  `src/`, the CI workflow, the documentation or `SHA256SUMS` referenced it.
+  It remains in the git history and on the authors' disks.
+
 ### Still open
 - ORCID iDs for all three authors, and the Zenodo DOI, are left as explicit
   TODOs in `CITATION.cff` rather than placeholders.
