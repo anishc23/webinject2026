@@ -464,6 +464,12 @@ Literature_Review_WebInject2026.xlsx   related-work matrix
 `data/csic_parsed.csv` and `data/ecml_parsed.csv` are the classic CSIC-2010 and
 ECML/PKDD-2007 corpora, parsed to a common schema for cross-dataset comparison.
 
+## Contributing
+
+The corpus is frozen and DOI-pinned, so pull requests that regenerate it cannot
+be merged; defect reports against the audit gate are the most useful
+contribution. See [CONTRIBUTING.md](CONTRIBUTING.md).
+
 ## Security and responsible use
 
 The corpus ships synthetic attack payloads drawn from public, long-documented

@@ -34,6 +34,13 @@ byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
   execution-validated, intended use, and separate routes for reporting a
   corpus defect (public issue) and a repository security issue (email).
 
+- `CONTRIBUTING.md` added: states that the corpus is frozen and DOI-pinned so
+  regenerating pull requests cannot be merged, what is welcome instead
+  (gate defects, non-reproducing results, new model-zoo entries that report
+  the same two ablations), and the checks to run locally.
+- The repository's GitHub About panel was empty. It now carries a description
+  and twelve topics.
+
 ### Still open
 - ORCID iDs for all three authors, and the Zenodo DOI, are left as explicit
   TODOs in `CITATION.cff` rather than placeholders.
