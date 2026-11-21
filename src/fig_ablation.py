@@ -38,6 +38,11 @@ plt.rcParams.update({
     "font.size": 11, "font.family": "serif",
     "axes.grid": True, "grid.alpha": 0.3,
     "savefig.dpi": 300, "savefig.bbox": "tight",
+    # Embed text as TrueType rather than matplotlib's default Type 3. Type 3 is
+    # a PostScript-procedure font: it renders correctly but some publisher
+    # preflight tools reject it, and it is the usual reason a figure that looks
+    # right locally is queried in production. No effect on raster output.
+    "pdf.fonttype": 42, "ps.fonttype": 42,
 })
 
 # Okabe-Ito steps. Fixed order, assigned per panel and never cycled.
