@@ -470,6 +470,8 @@ The corpus is frozen and DOI-pinned, so pull requests that regenerate it cannot
 be merged; defect reports against the audit gate are the most useful
 contribution. See [CONTRIBUTING.md](CONTRIBUTING.md).
 
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md).
+
 ## Security and responsible use
 
 The corpus ships synthetic attack payloads drawn from public, long-documented

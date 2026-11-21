@@ -38,6 +38,10 @@ byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
   regenerating pull requests cannot be merged, what is welcome instead
   (gate defects, non-reproducing results, new model-zoo entries that report
   the same two ablations), and the checks to run locally.
+- `CODE_OF_CONDUCT.md` added, taking the Contributor Covenant v2.1 as its
+  basis by reference, and stating explicitly that disputing a measurement is
+  welcome while disparaging a person is not -- a distinction that matters in a
+  repository whose changelog is largely a record of its own defects.
 - The repository's GitHub About panel was empty. It now carries a description
   and twelve topics.
 
