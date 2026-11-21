@@ -58,13 +58,13 @@ byte-identical to 4.5.0, and `SHA256SUMS` is unchanged.
   deposit metadata, because Zenodo uses it wholesale rather than merging it
   with `CITATION.cff`.
 - `tests/test_metadata.py` added, asserting the two deposit files agree on
-  authors, title, version and licence, and that ORCIDs are added to both or
-  to neither. Keeping two metadata files in step is exactly the kind of thing
-  that rots quietly, so it is a test rather than a comment.
-
-### Still open
-- ORCID iDs for all three authors, and the Zenodo DOI, are left as explicit
-  TODOs in `CITATION.cff` rather than placeholders.
+  authors, title, version, licence and ORCID iDs, and that each iD passes its
+  own ISO 7064 check digit. Keeping two metadata files in step is exactly the
+  kind of thing that rots quietly, so it is a test rather than a comment.
+- ORCID iDs for all three authors, in `CITATION.cff` (both the dataset entry
+  and `preferred-citation`) and in `.zenodo.json`. Earlier drafts left these as
+  visible TODOs rather than placeholders; they are now registered iDs, resolved
+  against the public registry before being recorded.
 
 ## 4.5.0 - a symmetric control for Table 1; the skeleton result gets its controls
 

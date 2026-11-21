@@ -32,26 +32,25 @@ identifiers:
 # the next release deposits a record built from stale metadata.
 # tests/test_metadata.py fails the build when the two disagree.
 #
-# TODO(owner): ORCID iDs are not yet registered. They are left as a visible gap
-# rather than a plausible-looking placeholder: a filled-in-looking identifier is
-# worse than an obviously missing one, because it ships wrong instead of
-# incomplete. Uncomment one per author below; nothing else needs editing.
+# The ORCID iDs below are registered and resolve to the three authors. They are
+# checksum-verified by tests/test_metadata.py, which also requires that they
+# match the iDs in .zenodo.json.
 authors:
   - given-names: Anish
     family-names: Choudhury
     email: anishc2301@gmail.com
     affiliation: "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
-    # orcid: "https://orcid.org/0000-0000-0000-0000"    # TODO(owner)
+    orcid: "https://orcid.org/0009-0007-5288-7140"
   - given-names: Abhishek Ramesh
     family-names: More
     email: abhimorework@gmail.com
     affiliation: "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
-    # orcid: "https://orcid.org/0000-0000-0000-0000"    # TODO(owner)
+    orcid: "https://orcid.org/0009-0007-3113-4756"
   - given-names: Sachin Shankarrao
     family-names: Shende
     email: sachin.shende@dypatil.edu
     affiliation: "Ramrao Adik Institute of Technology, D Y Patil Deemed to be University, Navi Mumbai, India"
-    # orcid: "https://orcid.org/0000-0000-0000-0000"    # TODO(owner)
+    orcid: "https://orcid.org/0000-0001-9812-1799"
 preferred-citation:
   type: conference-paper
   title: "Injection-Deletion Ablation: A Leakage-Audited Corpus for Web Application Injection Detection"
@@ -59,10 +58,13 @@ preferred-citation:
   authors:
     - given-names: Anish
       family-names: Choudhury
+      orcid: "https://orcid.org/0009-0007-5288-7140"
     - given-names: Abhishek Ramesh
       family-names: More
+      orcid: "https://orcid.org/0009-0007-3113-4756"
     - given-names: Sachin Shankarrao
       family-names: Shende
+      orcid: "https://orcid.org/0000-0001-9812-1799"
   collection-title: "Proceedings of the 13th International Conference on Information Systems Security and Privacy (ICISSP 2027)"
   publisher:
     name: SCITEPRESS

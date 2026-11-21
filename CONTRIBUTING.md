@@ -60,8 +60,8 @@ Two files describe the archived record, and they must agree:
 Zenodo reads `.zenodo.json` in preference to `CITATION.cff` and uses it
 wholesale rather than merging, so a field corrected in one and forgotten in the
 other publishes a wrong archive record, silently. `tests/test_metadata.py`
-asserts the two agree on authors, title, version and licence, and that ORCIDs
-land in both files or neither. Change both, in the same commit.
+asserts the two agree on authors, title, version, licence and ORCID iDs, and
+that each iD is well formed. Change both, in the same commit.
 
 ## Reporting a security issue
 
